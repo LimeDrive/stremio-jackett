@@ -1,9 +1,8 @@
 import re
 import json
 import time
-from urllib.parse import unquote, parse_qs, urlencode, urlparse
+from urllib.parse import unquote
 
-import bencodepy
 import requests
 
 from constants import NO_CACHE_VIDEO_URL
@@ -23,16 +22,7 @@ class RealDebrid(BaseDebrid):
         self.headers = {"Authorization": f"Bearer {self.config['debridKey']}"}
 
     def clean_magnet(self, magnet):
-        parsed = urlparse(magnet)
-        params = parse_qs(parsed.query)
-        
-        if 'tr' in params:
-            del params['tr']
-        
-        clean_query = urlencode(params, doseq=True)
-        clean_magnet = f"{parsed.scheme}:{parsed.netloc}?{clean_query}"
-        
-        return clean_magnet
+        return re.sub(r'&tr=[^&]*', '', magnet)
 
     def add_magnet(self, magnet, ip=None):
         url = f"{self.base_url}/rest/1.0/torrents/addMagnet"
@@ -40,32 +30,9 @@ class RealDebrid(BaseDebrid):
         data = {"magnet": clean_magnet_url}
         return self.get_json_response(url, method='post', headers=self.headers, data=data)
 
-    def clean_torrent_file(self, torrent_file_path):
-        with open(torrent_file_path, 'rb') as f:
-            torrent_data = f.read()
-        
-        decoded = bencodepy.decode(torrent_data)
-        if b'announce' in decoded:
-            del decoded[b'announce']
-        if b'announce-list' in decoded:
-            del decoded[b'announce-list']
-        
-        cleaned_torrent = bencodepy.encode(decoded)
-        
-        cleaned_file_path = torrent_file_path.replace('.torrent', '_cleaned.torrent')
-        with open(cleaned_file_path, 'wb') as f:
-            f.write(cleaned_torrent)
-        
-        return cleaned_file_path
-
-    def add_torrent(self, torrent_file_path):
-        cleaned_torrent_path = self.clean_torrent_file(torrent_file_path)
+    def add_torrent(self, torrent_file):
         url = f"{self.base_url}/rest/1.0/torrents/addTorrent"
-        
-        with open(cleaned_torrent_path, 'rb') as f:
-            cleaned_torrent_data = f.read()
-        
-        return self.get_json_response(url, method='put', headers=self.headers, data=cleaned_torrent_data)
+        return self.get_json_response(url, method='put', headers=self.headers, data=torrent_file)
 
     def delete_torrent(self, id):
         url = f"{self.base_url}/rest/1.0/torrents/delete/{id}"
@@ -236,13 +203,13 @@ class RealDebrid(BaseDebrid):
 
             torrent_id = magnet_response['id']
         else:
-            logger.info(f"Downloading torrent file from Jackett")
-            torrent_file = self.donwload_torrent_file(torrent_download)
-            logger.info(f"Torrent file downloaded from Jackett")
+            # logger.info(f"Downloading torrent file from Jackett")
+            # torrent_file = self.donwload_torrent_file(torrent_download)
+            # logger.info(f"Torrent file downloaded from Jackett")
 
-            logger.info(f"Adding torrent file to RealDebrid")
-            upload_response = self.add_torrent(torrent_file)
-            logger.info(f"RealDebrid add torrent file response: {upload_response}")
+            logger.info(f"Adding magnet to RealDebrid")
+            upload_response = self.add_magnet(magnet)
+            logger.info(f"RealDebrid add magnet file response: {upload_response}")
 
             if not upload_response or 'id' not in upload_response:
                 return "Error: Failed to add torrent file."
