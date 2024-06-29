@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "stremio-jackett"
+version = "v4.1.6"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.111.0"
+uvicorn = "^0.30.1"
+starlette = "^0.37.2"
+requests = "^2.32.3"
+bencode-py = "^4.0.0"
+jinja2 = "^3.1.4"
+aiocron = "^1.8"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

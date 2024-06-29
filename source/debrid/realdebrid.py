@@ -1,7 +1,9 @@
+import re
 import json
 import time
-from urllib.parse import unquote
+from urllib.parse import unquote, parse_qs, urlencode, urlparse
 
+import bencodepy
 import requests
 
 from constants import NO_CACHE_VIDEO_URL
@@ -20,14 +22,50 @@ class RealDebrid(BaseDebrid):
         self.base_url = "https://api.real-debrid.com"
         self.headers = {"Authorization": f"Bearer {self.config['debridKey']}"}
 
+    def clean_magnet(self, magnet):
+        parsed = urlparse(magnet)
+        params = parse_qs(parsed.query)
+        
+        if 'tr' in params:
+            del params['tr']
+        
+        clean_query = urlencode(params, doseq=True)
+        clean_magnet = f"{parsed.scheme}:{parsed.netloc}?{clean_query}"
+        
+        return clean_magnet
+
     def add_magnet(self, magnet, ip=None):
         url = f"{self.base_url}/rest/1.0/torrents/addMagnet"
-        data = {"magnet": magnet}
+        clean_magnet_url = self.clean_magnet(magnet)
+        data = {"magnet": clean_magnet_url}
         return self.get_json_response(url, method='post', headers=self.headers, data=data)
 
-    def add_torrent(self, torrent_file):
+    def clean_torrent_file(self, torrent_file_path):
+        with open(torrent_file_path, 'rb') as f:
+            torrent_data = f.read()
+        
+        decoded = bencodepy.decode(torrent_data)
+        if b'announce' in decoded:
+            del decoded[b'announce']
+        if b'announce-list' in decoded:
+            del decoded[b'announce-list']
+        
+        cleaned_torrent = bencodepy.encode(decoded)
+        
+        cleaned_file_path = torrent_file_path.replace('.torrent', '_cleaned.torrent')
+        with open(cleaned_file_path, 'wb') as f:
+            f.write(cleaned_torrent)
+        
+        return cleaned_file_path
+
+    def add_torrent(self, torrent_file_path):
+        cleaned_torrent_path = self.clean_torrent_file(torrent_file_path)
         url = f"{self.base_url}/rest/1.0/torrents/addTorrent"
-        return self.get_json_response(url, method='put', headers=self.headers, data=torrent_file)
+        
+        with open(cleaned_torrent_path, 'rb') as f:
+            cleaned_torrent_data = f.read()
+        
+        return self.get_json_response(url, method='put', headers=self.headers, data=cleaned_torrent_data)
 
     def delete_torrent(self, id):
         url = f"{self.base_url}/rest/1.0/torrents/delete/{id}"
