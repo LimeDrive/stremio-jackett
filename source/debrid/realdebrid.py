@@ -28,6 +28,7 @@ class RealDebrid(BaseDebrid):
         url = f"{self.base_url}/rest/1.0/torrents/addMagnet"
         clean_magnet_url = self.clean_magnet(magnet)
         data = {"magnet": clean_magnet_url}
+        logger.info(f"Adding magnet to RD: {clean_magnet_url}")
         return self.get_json_response(url, method='post', headers=self.headers, data=data)
 
     def add_torrent(self, torrent_file):
