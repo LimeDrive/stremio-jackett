@@ -47,7 +47,7 @@ class Premiumize(BaseDebrid):
             hashes_or_magnets)
         return self.get_json_response(url)
 
-    def get_stream_link(self, query, ip=None):
+    def get_stream_link(self, query, config, ip=None):
         query = json.loads(query)
         magnet = query['magnet']
         logger.info(f"Received query for magnet: {magnet}")

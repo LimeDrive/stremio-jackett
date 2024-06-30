@@ -17,6 +17,18 @@ function setElementDisplay(elementId, displayStatus) {
 function updateProviderFields(isChangeEvent = false) {
     if (document.getElementById('debrid').checked) {
         setElementDisplay('debrid-fields', 'block');
+        
+        if (document.getElementById('service').value === 'realdebrid') {
+            setElementDisplay('anonymize-magnets-container', 'block');
+        } else {
+            setElementDisplay('anonymize-magnets-container', 'none');
+        }
+    } else {
+        setElementDisplay('debrid-fields', 'none');
+        setElementDisplay('anonymize-magnets-container', 'none');
+    }
+    if (document.getElementById('debrid').checked) {
+        setElementDisplay('debrid-fields', 'block');
     } else {
         setElementDisplay('debrid-fields', 'none');
     }
@@ -39,6 +51,10 @@ function updateProviderFields(isChangeEvent = false) {
     // }
 }
 
+document.getElementById('service').addEventListener('change', function() {
+    updateProviderFields(true);
+});
+
 function loadData() {
     const currentUrl = window.location.href;
     let data = currentUrl.match(/\/([^\/]+)\/configure$/);
@@ -52,6 +68,10 @@ function loadData() {
         document.getElementById('debrid-api').value = data.debridKey;
         document.getElementById('tmdb-api').value = data.tmdbApi;
         document.getElementById('service').value = data.service;
+        if (data.anonymizeMagnets !== undefined) {
+            document.getElementById('anonymize-magnets').checked = data.anonymizeMagnets;
+        }
+        updateProviderFields();
         document.getElementById('exclusion-keywords').value = (data.exclusionKeywords || []).join(', ');
         document.getElementById('maxSize').value = data.maxSize;
         document.getElementById('resultsPerQuality').value = data.resultsPerQuality;
@@ -111,6 +131,7 @@ function getLink(method) {
     const debridApi = document.getElementById('debrid-api').value;
     const tmdbApi = document.getElementById('tmdb-api').value;
     const service = document.getElementById('service').value;
+    const anonymizeMagnets = document.getElementById('anonymize-magnets').checked;
     const exclusionKeywords = document.getElementById('exclusion-keywords').value.split(',').map(keyword => keyword.trim()).filter(keyword => keyword !== '');
     let maxSize = document.getElementById('maxSize').value;
     let resultsPerQuality = document.getElementById('resultsPerQuality').value;
@@ -159,6 +180,7 @@ function getLink(method) {
         jackettHost,
         'jackettApiKey': jackettApi,
         service,
+        anonymizeMagnets,
         'debridKey': debridApi,
         maxSize,
         exclusionKeywords,

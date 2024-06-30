@@ -10,4 +10,7 @@ def parse_config(b64config):
     if "languages" not in config:
         config["languages"] = [config["language"]]
 
+    if "anonymizeMagnets" not in config:
+        config["anonymizeMagnets"] = False # Default to False if not specified
+
     return config

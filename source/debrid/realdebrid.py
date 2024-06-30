@@ -21,14 +21,10 @@ class RealDebrid(BaseDebrid):
         self.base_url = "https://api.real-debrid.com"
         self.headers = {"Authorization": f"Bearer {self.config['debridKey']}"}
 
-    def clean_magnet(self, magnet):
-        return re.sub(r'&tr=[^&]*', '', magnet)
-
     def add_magnet(self, magnet, ip=None):
         url = f"{self.base_url}/rest/1.0/torrents/addMagnet"
-        clean_magnet_url = self.clean_magnet(magnet)
-        data = {"magnet": clean_magnet_url}
-        logger.info(f"Adding magnet to RD: {clean_magnet_url}")
+        data = {"magnet": magnet}
+        logger.info(f"Adding magnet to RD: {magnet}")
         return self.get_json_response(url, method='post', headers=self.headers, data=data)
 
     def add_torrent(self, torrent_file):
@@ -87,7 +83,7 @@ class RealDebrid(BaseDebrid):
         url = f"{self.base_url}/rest/1.0/torrents/instantAvailability/{'/'.join(hashes_or_magnets)}"
         return self.get_json_response(url, headers=self.headers)
 
-    def get_stream_link(self, query_string, ip=None):
+    def get_stream_link(self, query_string, config, ip=None):
         query = json.loads(query_string)
 
         magnet = query['magnet']
@@ -113,7 +109,7 @@ class RealDebrid(BaseDebrid):
 
         # The torrent is not yet added
         if torrent_info is None:
-            torrent_info = self.__add_magnet_or_torrent(magnet, torrent_download)
+            torrent_info = self.__add_magnet_or_torrent(magnet, torrent_download, anon_magnet=config["anonymizeMagnets"])
             if not torrent_info or 'files' not in torrent_info:
                 return "Error: Failed to get torrent info."
 
@@ -192,10 +188,12 @@ class RealDebrid(BaseDebrid):
 
         return False
 
-    def __add_magnet_or_torrent(self, magnet, torrent_download=None):
+    def __add_magnet_or_torrent(self, magnet, torrent_download=None, anon_magnet=False):
         torrent_id = ""
         if torrent_download is None:
             logger.info(f"Adding magnet to RealDebrid")
+            if anon_magnet:
+                magnet = re.sub(r'&tr=[^&]*', '', magnet)
             magnet_response = self.add_magnet(magnet)
             logger.info(f"RealDebrid add magnet response: {magnet_response}")
 
@@ -203,14 +201,24 @@ class RealDebrid(BaseDebrid):
                 return "Error: Failed to add magnet."
 
             torrent_id = magnet_response['id']
-        else:
-            # logger.info(f"Downloading torrent file from Jackett")
-            # torrent_file = self.donwload_torrent_file(torrent_download)
-            # logger.info(f"Torrent file downloaded from Jackett")
-
+        elif anon_magnet and torrent_download:
             logger.info(f"Adding magnet to RealDebrid")
-            upload_response = self.add_magnet(magnet)
-            logger.info(f"RealDebrid add magnet file response: {upload_response}")
+            clean_magnet = re.sub(r'&tr=[^&]*', '', magnet)
+            magnet_response = self.add_magnet(clean_magnet)
+            logger.info(f"RealDebrid add magnet response: {magnet_response}")
+
+            if not magnet_response or 'id' not in magnet_response:
+                return "Error: Failed to add magnet."
+
+            torrent_id = magnet_response['id']
+        else:
+            logger.info(f"Downloading torrent file from Jackett")
+            torrent_file = self.donwload_torrent_file(torrent_download)
+            logger.info(f"Torrent file downloaded from Jackett")
+
+            logger.info(f"Adding torrent file to RealDebrid")
+            upload_response = self.add_torrent(torrent_file)
+            logger.info(f"RealDebrid add torrent file response: {upload_response}")
 
             if not upload_response or 'id' not in upload_response:
                 return "Error: Failed to add torrent file."

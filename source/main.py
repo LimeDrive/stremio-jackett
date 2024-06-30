@@ -213,7 +213,7 @@ async def get_playback(config: str, query: str, request: Request):
         logger.info("Decoded query")
         ip = request.client.host
         debrid_service = get_debrid_service(config)
-        link = debrid_service.get_stream_link(query, ip)
+        link = debrid_service.get_stream_link(query, config, ip)
 
         logger.info("Got link: " + link)
         return RedirectResponse(url=link, status_code=status.HTTP_301_MOVED_PERMANENTLY)
@@ -234,7 +234,7 @@ async def get_playback(config: str, query: str, request: Request):
         logger.info("Decoded query")
         ip = request.client.host
         debrid_service = get_debrid_service(config)
-        link = debrid_service.get_stream_link(query, ip)
+        link = debrid_service.get_stream_link(query, config, ip)
 
         logger.info("Got link: " + link)
         return RedirectResponse(url=link, status_code=status.HTTP_301_MOVED_PERMANENTLY)

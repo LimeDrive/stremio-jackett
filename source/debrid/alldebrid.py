@@ -33,7 +33,7 @@ class AllDebrid(BaseDebrid):
         url = f"{self.base_url}link/unlock?agent=jackett&apikey={self.config['debridKey']}&link={link}&ip={ip}"
         return self.get_json_response(url)
 
-    def get_stream_link(self, query_string, ip):
+    def get_stream_link(self, query_string, config, ip):
         query = json.loads(query_string)
 
         magnet = query['magnet']
