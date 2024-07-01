@@ -1,35 +1,51 @@
 from utils.filter.base_filter import BaseFilter
 from utils.logger import setup_logger
 
+
 logger = setup_logger(__name__)
 
 
 class QualityExclusionFilter(BaseFilter):
-    def __init__(self, config):
-        super().__init__(config)
+    RIPS = {"HDRIP", "BRRIP", "BDRIP", "WEBRIP", "TVRIP", "VODRIP"}
+    CAMS = {"CAM", "TS", "TC", "R5", "DVDSCR", "HDTV", "PDTV", "DSR", "WORKPRINT", "VHSRIP", "HDCAM"}
 
-    RIPS = ["HDRIP", "BRRIP", "BDRIP", "WEBRIP", "TVRIP", "VODRIP", "HDRIP"]
-    CAMS = ["CAM", "TS", "TC", "R5", "DVDSCR", "HDTV", "PDTV", "DSR", "WORKPRINT", "VHSRIP", "HDCAM"]
+    def __init__(self, config: dict):
+        super().__init__(config)
+        self.excluded_qualities = {quality.upper() for quality in self.config.get('exclusion', [])}
+        self.exclude_rips = "RIPS" in self.excluded_qualities
+        self.exclude_cams = "CAM" in self.excluded_qualities
 
     def filter(self, data):
-        filtered_items = []
-        excluded_qualities = [quality.upper() for quality in self.config['exclusion']]
-        rips = "RIPS" in excluded_qualities
-        cams = "CAM" in excluded_qualities
+        return [
+            stream for stream in data
+            if self._is_stream_allowed(stream)
+        ]
 
-        for stream in data:
-            for quality in stream.parsed_data.quality:
-                if quality.upper() in excluded_qualities:
-                    break
-                if rips and quality.upper() in self.RIPS:
-                    break
-                if cams and quality.upper() in self.CAMS:
-                    break
-                filtered_items.append(stream)
-            else:
-                if "Unknown" not in excluded_qualities:
-                    filtered_items.append(stream)
-        return filtered_items
+    def _is_stream_allowed(self, stream) -> bool:
+        logger.debug(f"Checking stream: quality={stream.parsed_data.quality}, quality_spec={stream.parsed_data.resolution}")
+        logger.debug(f"Checking stream: {stream.parsed_data}")
 
-    def can_filter(self):
-        return self.config['exclusion'] is not None and len(self.config['exclusion']) > 0
+        # Vérifier la qualité principale
+        if any(q.upper() in self.excluded_qualities for q in stream.parsed_data.quality):
+            logger.debug(f"Stream excluded due to main quality: {stream.parsed_data.quality}")
+            return False
+
+        # Vérifier les spécifications de qualité
+        if stream.parsed_data.resolution:
+            for item in stream.parsed_data.resolution:
+                item_upper = item.upper()
+                if item_upper in self.excluded_qualities:
+                    logger.debug(f"Stream excluded due to quality spec: {item}")
+                    return False
+                if self.exclude_rips and item_upper in self.RIPS:
+                    logger.debug(f"Stream excluded due to RIP: {item}")
+                    return False
+                if self.exclude_cams and item_upper in self.CAMS:
+                    logger.debug(f"Stream excluded due to CAM: {item}")
+                    return False
+
+        logger.debug("Stream allowed")
+        return True
+
+    def can_filter(self) -> bool:
+        return bool(self.excluded_qualities)

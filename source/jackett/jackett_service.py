@@ -266,15 +266,15 @@ class JackettService:
 
     def __post_process_results(self, results, media):
         for result in results:
-
-            # self.logger.info(result.title)
-            # self.logger.info(parse(result.title))
-
             parsed_result = parse(result.raw_title)
-            # result.languages = [languages.get(name=language).alpha2 for language in parsed_result.language]
             result.parsed_data = parsed_result
-            # TODO: replace with parsed_result.lang_codes when RTN is updated
+            self.logger.info(f"Parsed result: {parsed_result}")
+
             result.languages = detect_languages(result.raw_title)
             result.type = media.type
+
+            if isinstance(media, Series):
+                result.season = media.season
+                result.episode = media.episode
 
         return results

@@ -11,16 +11,12 @@ class LanguageFilter(BaseFilter):
     def filter(self, data):
         filtered_data = []
         for torrent in data:
-            if len(torrent.languages) == 0:
+            if not torrent.languages:
                 continue
 
-            for language in torrent.languages:
-                if language in self.config['languages']:
-                    filtered_data.append(torrent)
-                    continue
-
-            if "multi" in torrent.languages:
+            if "multi" in torrent.languages or any(lang in self.config['languages'] for lang in torrent.languages):
                 filtered_data.append(torrent)
+
         return filtered_data
 
     def can_filter(self):

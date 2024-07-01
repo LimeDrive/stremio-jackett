@@ -1,6 +1,5 @@
 import re
 
-
 def detect_languages(torrent_name):
     language_patterns = {
         "fr": r'\b(FRENCH|FR|VF|VF2|VFI|VFi|VFF|TRUEFRENCH|VFQ|FRA|FRE)\b',
@@ -23,6 +22,6 @@ def detect_languages(torrent_name):
             languages.append(language)
 
     if len(languages) == 0:
-        return ["en"]
+        return ["fr"]
 
     return languages

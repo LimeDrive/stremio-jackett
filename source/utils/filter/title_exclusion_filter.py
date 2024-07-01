@@ -7,17 +7,28 @@ logger = setup_logger(__name__)
 class TitleExclusionFilter(BaseFilter):
     def __init__(self, config):
         super().__init__(config)
+        self.excluded_keywords = {keyword.upper() for keyword in self.config.get('exclusionKeywords', [])}
 
     def filter(self, data):
         filtered_items = []
-        excluded_keywords = [keyword.upper() for keyword in self.config['exclusionKeywords']]
         for stream in data:
-            for keyword in excluded_keywords:
-                if keyword in stream.title.upper():
-                    break
-            else:
+            if self._should_include_stream(stream):
                 filtered_items.append(stream)
+        
+        logger.info(f"TitleExclusionFilter: input {len(data)}, output {len(filtered_items)}")
         return filtered_items
 
+    def _should_include_stream(self, stream):
+        try:
+            title_upper = stream.title.upper()
+            for keyword in self.excluded_keywords:
+                if keyword in title_upper:
+                    logger.debug(f"Excluded stream: {stream.title} (keyword: {keyword})")
+                    return False
+            return True
+        except AttributeError:
+            logger.warning(f"Stream has no title attribute: {stream}")
+            return False
+
     def can_filter(self):
-        return self.config['exclusionKeywords'] is not None and len(self.config['exclusionKeywords']) > 0
+        return bool(self.excluded_keywords)
