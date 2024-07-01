@@ -53,7 +53,7 @@ class TorrentService:
     def __process_web_url(self, result: TorrentItem):
         try:
             # TODO: is the timeout enough?
-            response = self.__session.get(result.link, allow_redirects=False, timeout=2)
+            response = self.__session.get(result.link, allow_redirects=False, timeout=40)
         except requests.exceptions.RequestException:
             self.logger.error(f"Error while processing url: {result.link}")
             return result

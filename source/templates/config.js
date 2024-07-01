@@ -1,5 +1,5 @@
 const sorts = ['quality', 'sizedesc', 'sizeasc', 'qualitythensize'];
-const qualityExclusions = ['4k', '1080p', '720p', '480p', 'rips', 'cam', 'unknown'];
+const qualityExclusions = ['4K', '2160p', '1080p', '720p', '480p', 'rips', 'cam', 'unknown'];
 const languages = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'in', 'nl', 'hu', 'la', 'multi'];
 
 document.addEventListener('DOMContentLoaded', function () {
