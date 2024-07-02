@@ -25,12 +25,11 @@ class QualityExclusionFilter(BaseFilter):
         logger.debug(f"Checking stream: quality={stream.parsed_data.quality}, quality_spec={stream.parsed_data.resolution}")
         logger.debug(f"Checking stream: {stream.parsed_data}")
 
-        # Vérifier la qualité principale
         if any(q.upper() in self.excluded_qualities for q in stream.parsed_data.quality):
             logger.debug(f"Stream excluded due to main quality: {stream.parsed_data.quality}")
             return False
 
-        # Vérifier les spécifications de qualité
+        # TODO: Manage case where quality_spec is empty but quality is not
         if stream.parsed_data.resolution:
             for item in stream.parsed_data.resolution:
                 item_upper = item.upper()

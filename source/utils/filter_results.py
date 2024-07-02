@@ -22,8 +22,8 @@ def sort_quality(item):
 
 
 def items_sort(items, config):
-    logger.info(config)
-
+# TODO: Revwiew sorting, ep_number, season_number are manage by RTN we should use it.
+# TODO: Add custom sorting config.
     settings = SettingsModel(
         require=[],
         exclude=config['exclusionKeywords'] + config['exclusion'],
@@ -75,9 +75,6 @@ def items_sort(items, config):
 def filter_out_non_matching(items, season, episode):
     filtered_items = []
     for item in items:
-        logger.info(season)
-        logger.info(episode)
-        logger.info(item.parsed_data)
         clean_season = season.replace("S", "")
         clean_episode = episode.replace("E", "")
         numeric_season = int(clean_season)

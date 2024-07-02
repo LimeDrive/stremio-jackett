@@ -50,6 +50,7 @@ def cache_results(torrents: List[TorrentItem], media):
             cache_item['language'] = ";".join(torrent.languages)
             cache_item['type'] = media.type
             cache_item['availability'] = torrent.availability
+            cache_item['parsed_data'] = torrent.parsed_data
 
             if media.type == "movie":
                 cache_item['year'] = media.year
