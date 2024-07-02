@@ -1,19 +1,20 @@
 import re
 
+
 def detect_languages(torrent_name):
     language_patterns = {
-        "fr": r'\b(FRENCH|FR|VF|VF2|VFI|VFi|VFF|TRUEFRENCH|VFQ|FRA|FRE)\b',
-        "en": r'\b(ENGLISH|EN|ENG)\b',
-        "es": r'\b(SPANISH|ES|ESP)\b',
-        "de": r'\b(GERMAN|DE|GER)\b',
-        "it": r'\b(ITALIAN|IT|ITA)\b',
-        "pt": r'\b(PORTUGUESE|PT|POR)\b',
-        "ru": r'\b(RUSSIAN|RU|RUS)\b',
-        "in": r'\b(INDIAN|IN|HINDI|TELUGU|TAMIL|KANNADA|MALAYALAM|PUNJABI|MARATHI|BENGALI|GUJARATI|URDU|ODIA|ASSAMESE|KONKANI|MANIPURI|NEPALI|SANSKRIT|SINHALA|SINDHI|TIBETAN|BHOJPURI|DHIVEHI|KASHMIRI|KURUKH|MAITHILI|NEWARI|RAJASTHANI|SANTALI|SINDHI|TULU)\b',
-        "nl": r'\b(DUTCH|NL|NLD)\b',
-        "hu": r'\b(HUNGARIAN|HU|HUN)\b',
-        "la": r'\b(LATIN|LATINO|LA)\b',
-        "multi": r"\b(MULTI)\b"
+        "fr": r"\b(?:FR(?:ench|a|e|anc[eê]s)?|V(?:O?F(?:F|I|i)?|O?Q)|TRUEFRENCH|VOST(?:FR)?|SUBFRENCH)\b",
+        "en": r"\b(?:EN(?:G(?:LISH)?)?|VOST(?:EN)?|SUBBED)\b",
+        "es": r"\b(?:ES(?:P(?:ANISH)?)?|VOSE|SUBESP)\b",
+        "de": r"\b(?:DE(?:UTSCH|RMAN)?|GER(?:MAN)?|SUBGER)\b",
+        "it": r"\b(?:IT(?:A(?:LIAN)?)?|SUBITA)\b",
+        "pt": r"\b(?:PT(?:-BR)?|POR(?:TUGUESE)?|LEGENDADO)\b",
+        "ru": r"\b(?:RU(?:S(?:SIAN)?)?|SUBSRUS)\b",
+        "in": r"\b(?:IN(?:DIAN)?|HINDI|TELUGU|TAMIL|KANNADA|MALAYALAM|PUNJABI|MARATHI|BENGALI|GUJARATI|URDU|ODIA|ASSAMESE|KONKANI|MANIPURI|NEPALI|SANSKRIT|SINHALA|SINDHI|TIBETAN|BHOJPURI|DHIVEHI|KASHMIRI|KURUKH|MAITHILI|NEWARI|RAJASTHANI|SANTALI|SINDHI|TULU)\b",
+        "nl": r"\b(?:NL(?:D)?|DUTCH|SUBSNL)\b",
+        "hu": r"\b(?:HU(?:N(?:GARIAN)?)?|SUBHUN)\b",
+        "la": r"\b(?:LA(?:TIN(?:O)?)?)\b",
+        "multi": r"\b(?:MULTI(?:LANG(?:UE)?)?|DUAL(?:AUDIO)?|VF2)\b",
     }
 
     languages = []

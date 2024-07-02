@@ -69,32 +69,39 @@ class TorrentSmartContainer:
         for info_hash, details in response.items():
             if "rd" not in details:
                 continue
-
             torrent_item: TorrentItem = self.__itemsDict[info_hash]
-
-            files = []
-            self.logger.info(torrent_item.type)
+            self.logger.debug(torrent_item.type)
+            files = []  # Initialisation de la liste files
             if torrent_item.type == "series":
                 for variants in details["rd"]:
+                    file_found = False
                     for file_index, file in variants.items():
-                        self.logger.info(file["filename"])
+                        self.logger.debug(file["filename"])
                         clean_season = media.season.replace("S", "")
                         clean_episode = media.episode.replace("E", "")
                         numeric_season = int(clean_season)
                         numeric_episode = int(clean_episode)
                         if season_episode_in_filename(file["filename"], numeric_season, numeric_episode):
-                            self.logger.info("File details 2")
-                            self.logger.info(file["filename"])
+                            self.logger.debug("File details 2")
+                            self.logger.debug(file["filename"])
+                            torrent_item.file_index = file_index
+                            torrent_item.file_name = file["filename"]
+                            torrent_item.size = file["filesize"]
+                            torrent_item.availability = True
+                            file_found = True
                             files.append({
                                 "file_index": file_index,
                                 "title": file["filename"],
                                 "size": file["filesize"]
                             })
+                            break
+                    if file_found:
+                        break
             else:
                 for variants in details["rd"]:
                     for file_index, file in variants.items():
-                        self.logger.info("File details 3")
-                        self.logger.info(file["filename"])
+                        self.logger.debug("File details 3")
+                        self.logger.debug(file["filename"])
                         files.append({
                             "file_index": file_index,
                             "title": file["filename"],
@@ -145,10 +152,11 @@ class TorrentSmartContainer:
         items_dict = dict()
         for item in items:
             if item.info_hash is not None:
-                self.logger.debug(f"Adding {item.info_hash} to items dict")
-                if item.info_hash in items_dict:
-                    self.logger.debug(f"Duplicate info hash found: {item.info_hash}")
-                items_dict[item.info_hash] = item
+                if item.info_hash not in items_dict:
+                    self.logger.debug(f"Adding {item.info_hash} to items dict")
+                    items_dict[item.info_hash] = item
+                else:
+                    self.logger.debug(f"Skipping duplicate info hash: {item.info_hash}")
         return items_dict
 
     # Simple recursion to traverse the file structure returned by AllDebrid

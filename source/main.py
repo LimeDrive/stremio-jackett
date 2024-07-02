@@ -10,11 +10,12 @@ import requests
 import starlette.status as status
 from aiocron import crontab
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.responses import FileResponse
+from cachetools import TTLCache
 
 from debrid.get_debrid_service import get_debrid_service
 from jackett.jackett_result import JackettResult
@@ -68,6 +69,8 @@ if not isDev:
 templates = Jinja2Templates(directory="templates")
 
 logger = setup_logger(__name__)
+
+cache = TTLCache(maxsize=100, ttl=3600)
 
 
 @app.get("/")
@@ -200,22 +203,26 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
     return {"streams": stream_list}
 
 
-# @app.head("/playback/{config}/{query}")
+def get_cached_stream_link(query: str, config: dict, ip: str):
+    cache_key = f"{query}_{ip}"
+    if cache_key not in cache:
+        debrid_service = get_debrid_service(config)
+        cache[cache_key] = debrid_service.get_stream_link(query, config, ip)
+    return cache[cache_key]
+
 @app.get("/playback/{config}/{query}")
 async def get_playback(config: str, query: str, request: Request):
     try:
         if not query:
             raise HTTPException(status_code=400, detail="Query required.")
+        
         config = parse_config(config)
-        logger.info("Decoding query")
-        query = decodeb64(query)
-        logger.info(query)
-        logger.info("Decoded query")
+        decoded_query = decodeb64(query)
         ip = request.client.host
-        debrid_service = get_debrid_service(config)
-        link = debrid_service.get_stream_link(query, config, ip)
 
-        logger.info("Got link: " + link)
+        link = get_cached_stream_link(decoded_query, config, ip)
+
+        logger.info(f"Got link: {link}")
         return RedirectResponse(url=link, status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
     except Exception as e:
@@ -223,24 +230,25 @@ async def get_playback(config: str, query: str, request: Request):
         raise HTTPException(status_code=500, detail="An error occurred while processing the request.")
 
 @app.head("/playback/{config}/{query}")
-async def get_playback(config: str, query: str, request: Request):
+async def head_playback(config: str, query: str, request: Request):
     try:
         if not query:
             raise HTTPException(status_code=400, detail="Query required.")
+        
         config = parse_config(config)
-        logger.info("Decoding query")
-        query = decodeb64(query)
-        logger.info(query)
-        logger.info("Decoded query")
+        decoded_query = decodeb64(query)
         ip = request.client.host
-        debrid_service = get_debrid_service(config)
-        link = debrid_service.get_stream_link(query, config, ip)
 
-        logger.info("Got link: " + link)
-        return RedirectResponse(url=link, status_code=status.HTTP_301_MOVED_PERMANENTLY)
+        cache_key = f"{decoded_query}_{ip}"
+        if cache_key in cache:
+            return Response(status_code=status.HTTP_200_OK)
+        else:
+            # if no cache wait for 100ms
+            time.sleep(0.1)
+            return Response(status_code=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred during HEAD request: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while processing the request.")
 
 
