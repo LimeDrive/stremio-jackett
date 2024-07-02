@@ -17,6 +17,7 @@ aiocron = "^1.8"
 python-dotenv = "^1.0.1"
 rank-torrent-name = "^0.2.21"
 cachetools = "^5.3.3"
+redis = "^5.0.7"
 
 
 [build-system]

@@ -7,7 +7,7 @@ logger = setup_logger(__name__)
 class ResultsPerQualityFilter(BaseFilter):
     def __init__(self, config):
         super().__init__(config)
-        self.max_results_per_quality = int(self.config.get('resultsPerQuality', 0))
+        self.max_results_per_quality = int(self.config.get('resultsPerQuality', 5))
 
     def filter(self, data):
         filtered_items = []
@@ -16,8 +16,7 @@ class ResultsPerQualityFilter(BaseFilter):
         for item in data:
             resolutions = getattr(item.parsed_data, 'resolution', [])
             if not resolutions:
-                logger.warning(f"Item has no resolution: {item}")
-                continue
+                resolutions = ["?.BZH.?"]
 
             logger.info(f"Filtering by quality: {resolutions}")
             

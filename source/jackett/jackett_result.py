@@ -42,7 +42,6 @@ class JackettResult:
         if type(cached_item) is not dict:
             logger.error(cached_item)
 
-        parsed_result = parse(cached_item['title'])
 
         self.raw_title = cached_item['title']
         self.indexer = "Cache"  # Cache doesn't return an indexer sadly (It stores it tho)
@@ -53,6 +52,6 @@ class JackettResult:
         self.seeders = cached_item['seeders']
         self.size = cached_item['size']
         self.type = media.type
-        self.parsed_data = parsed_result
+        self.parsed_data = cached_item['parsed_data']
 
         return self

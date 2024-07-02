@@ -79,3 +79,6 @@ EXCLUDED_TRACKERS = ['0day.kiev', '1ptbar', '2 Fast 4 You', '2xFree', '3ChangTra
                      'XbytesV2', 'Xider-Torrent', 'XSpeeds', 'Xthor (API)', 'xTorrenty', 'Xtreme Bytes', 'XWT-Classics',
                      'XWtorrents', 'YDYPT', 'YGGcookie', 'YGGtorrent', 'Zamunda.net', 'Zelka.org', 'ZmPT (织梦)',
                      'ZOMB', 'ZonaQ', 'Ztracker']
+
+REDIS_HOST = 'redis'
+REDIS_PORT = 6379

@@ -52,8 +52,8 @@ class TorrentSmartContainer:
         threading.Thread(target=self.__save_to_cache).start()
 
     def __save_to_cache(self):
-        public_torrents = list(filter(lambda x: x.privacy == "public", self.get_items()))
-        cache_results(public_torrents, self.__media)
+        all_torrents = self.get_items()
+        cache_results(all_torrents, self.__media)
 
     def update_availability(self, debrid_response, debrid_type, media):
         if debrid_type is RealDebrid:

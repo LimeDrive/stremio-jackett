@@ -5,7 +5,7 @@ import time
 import xml.etree.ElementTree as ET
 
 import requests
-from RTN import parse
+from RTN import parse, ParsedData
 
 from jackett.jackett_indexer import JackettIndexer
 from jackett.jackett_result import JackettResult

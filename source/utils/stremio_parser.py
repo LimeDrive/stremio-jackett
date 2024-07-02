@@ -56,10 +56,11 @@ def parse_to_debrid_stream(torrent_item: TorrentItem, configb64, host, torrentin
 
     parsed_data = torrent_item.parsed_data.data
 
-    # TODO: Always take the first resolution, is that the best one?
-    resolution = parsed_data.resolution[0] if len(parsed_data.resolution) > 0 else "Unknown"
-    name += f"{resolution}" + (f"\n({'|'.join(parsed_data.quality)})" if len(
-        parsed_data.quality) > 0 else "")
+    resolution = parsed_data.resolution[0] if parsed_data.resolution else "????"
+    name += f"{resolution}"
+
+    if parsed_data.quality:
+        name += f"\n({'|'.join(parsed_data.quality)})"
 
     size_in_gb = round(int(torrent_item.size) / 1024 / 1024 / 1024, 2)
 
@@ -69,16 +70,20 @@ def parse_to_debrid_stream(torrent_item: TorrentItem, configb64, host, torrentin
         title += f"{torrent_item.file_name}\n"
 
     title += f"👥 {torrent_item.seeders}   💾 {size_in_gb}GB   🔍 {torrent_item.indexer}\n"
+    
     if parsed_data.codec:
-        title += f"🎥 {", ".join(parsed_data.codec)}   "
+        title += f"🎥 {', '.join(parsed_data.codec)}   "
     if parsed_data.audio:
-        title += f"🎧 {", ".join(parsed_data.audio)}   "
+        title += f"🎧 {', '.join(parsed_data.audio)}   "
     if parsed_data.codec or parsed_data.audio:
         title += "\n"
 
-    for language in torrent_item.languages:
-        title += f"{get_emoji(language)}/"
-    title = title[:-1]
+    # Gestion des langues
+    if torrent_item.languages:
+        title += "/".join(get_emoji(language) for language in torrent_item.languages)
+        title = title[:-1]
+    else:
+        title += "🌐"
 
     queryb64 = encodeb64(json.dumps(torrent_item.to_debrid_stream_query(media))).replace('=', '%3D')
 
