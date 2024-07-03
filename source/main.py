@@ -20,6 +20,8 @@ from cachetools import TTLCache
 from debrid.get_debrid_service import get_debrid_service
 from jackett.jackett_result import JackettResult
 from jackett.jackett_service import JackettService
+from zilean.zilean_result import ZileanResult
+from zilean.zilean_service import ZileanService
 from metdata.cinemeta import Cinemeta
 from metdata.tmdb import TMDB
 from torrent.torrent_service import TorrentService
@@ -175,10 +177,29 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
             logger.info("No cached results found")
             search_results = []
 
+    if config["zilean"] and len(search_results) < 5:  # TODO: make this configurable
+        zilean_service = ZileanService(config)
+        zilean_search_results = zilean_service.search(media)
+        if zilean_search_results:
+            logger.info(f"Got {len(zilean_search_results)} results from Zilean")
+            zilean_search_results = [ZileanResult().from_api_cached_item(torrent, media) for torrent in zilean_search_results]
+            logger.info(f"Convert {len(zilean_search_results)} Zilean results to TorrentItems")
+            zilean_search_results = filter_items(zilean_search_results, media, config=config)
+            logger.info(f"Filter {len(zilean_search_results)} Zilean results")
+            zilean_search_results = torrent_service.convert_and_process(zilean_search_results)
+
+        if not search_results:
+            search_results = zilean_search_results
+        elif zilean_search_results and search_results:
+                search_results = merge_items(search_results, zilean_search_results)
+        else:
+            logger.info("No results found on DMM API")
+            search_results = []
+            
     # TODO: if we have results per quality set, most of the time we will not have enough cached results AFTER filtering them
     # because we will have less results than the maxResults, so we will always have to search for new results
 
-    if config['jackett'] and len(search_results) < 3: # TODO: make this configurable
+    if config['jackett'] and len(search_results) < 5: # TODO: make this configurable
         if len(search_results) > 0 and config['cache']:
             logger.info("Not enough cached results found (results: " + str(len(search_results)) + ")")
         elif config['cache']:

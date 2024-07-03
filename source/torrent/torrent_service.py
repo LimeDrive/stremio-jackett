@@ -10,6 +10,7 @@ import requests
 from RTN import parse
 
 from jackett.jackett_result import JackettResult
+from zilean.zilean_result import ZileanResult
 from torrent.torrent_item import TorrentItem
 from utils.general import get_info_hash_from_magnet
 from utils.general import season_episode_in_filename
@@ -20,11 +21,11 @@ class TorrentService:
         self.logger = setup_logger(__name__)
         self.__session = requests.Session()
 
-    def convert_and_process(self, results: List[JackettResult]):
+    def convert_and_process(self, results: List[JackettResult | ZileanResult]):
         threads = []
         torrent_items_queue = queue.Queue()
 
-        def thread_target(result: JackettResult):
+        def thread_target(result: JackettResult | ZileanResult):
             torrent_item = result.convert_to_torrent_item()
 
             if torrent_item.link.startswith("magnet:"):

@@ -20,10 +20,10 @@ class TitleExclusionFilter(BaseFilter):
 
     def _should_include_stream(self, stream):
         try:
-            title_upper = stream.title.upper()
+            title_upper = stream.raw_title.upper()
             for keyword in self.excluded_keywords:
                 if keyword in title_upper:
-                    logger.debug(f"Excluded stream: {stream.title} (keyword: {keyword})")
+                    logger.debug(f"Excluded stream: {stream.raw_title} (keyword: {keyword})")
                     return False
             return True
         except AttributeError:
