@@ -1,3 +1,4 @@
+from typing import List
 from RTN import title_match, RTN, DefaultRanking, SettingsModel, sort_torrents
 
 from utils.filter.language_filter import LanguageFilter
@@ -5,6 +6,7 @@ from utils.filter.max_size_filter import MaxSizeFilter
 from utils.filter.quality_exclusion_filter import QualityExclusionFilter
 from utils.filter.results_per_quality_filter import ResultsPerQualityFilter
 from utils.filter.title_exclusion_filter import TitleExclusionFilter
+from torrent.torrent_item import TorrentItem
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -146,3 +148,19 @@ def sort_items(items, config):
         return items_sort(items, config)
     else:
         return items
+
+def merge_items(cache_items: List[TorrentItem], shearch_items: List[TorrentItem]) -> List[TorrentItem]:
+    merged_dict = {}
+    def add_to_merged(item):
+            if item.raw_title not in merged_dict:
+                merged_dict[item.raw_title] = item
+            else:
+                # if dupes, keep the one with the most seeders
+                if item.seeders > merged_dict[item.raw_title].seeders:
+                    merged_dict[item.raw_title] = item
+
+    for item in cache_items:
+        add_to_merged(item)
+    for item in shearch_items:
+        add_to_merged(item)
+    return list(merged_dict.values())

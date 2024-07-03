@@ -7,7 +7,7 @@ from debrid.alldebrid import AllDebrid
 from debrid.premiumize import Premiumize
 from debrid.realdebrid import RealDebrid
 from torrent.torrent_item import TorrentItem
-from utils.cache import cache_results
+from utils.cache import cache_public
 from utils.general import season_episode_in_filename
 from utils.logger import setup_logger
 
@@ -52,8 +52,8 @@ class TorrentSmartContainer:
         threading.Thread(target=self.__save_to_cache).start()
 
     def __save_to_cache(self):
-        all_torrents = self.get_items()
-        cache_results(all_torrents, self.__media)
+        public_torrents = list(filter(lambda x: x.privacy == "public", self.get_items()))
+        cache_public(public_torrents, self.__media)
 
     def update_availability(self, debrid_response, debrid_type, media):
         if debrid_type is RealDebrid:

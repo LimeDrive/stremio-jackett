@@ -24,8 +24,8 @@ from metdata.cinemeta import Cinemeta
 from metdata.tmdb import TMDB
 from torrent.torrent_service import TorrentService
 from torrent.torrent_smart_container import TorrentSmartContainer
-from utils.cache import search_cache, cache_results
-from utils.filter_results import filter_items, sort_items
+from utils.cache import search_redis, cache_redis, cache_public, search_public
+from utils.filter_results import filter_items, sort_items, merge_items
 from utils.logger import setup_logger
 from utils.parse_config import parse_config
 from utils.stremio_parser import parse_to_stremio_streams
@@ -139,22 +139,40 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
     debrid_service = get_debrid_service(config)
 
     search_results = []
+    torrent_service = TorrentService()
 
     if config['cache']:
-        logger.info("Getting cached results")
-        cached_results = search_cache(media)
-        if cached_results:
+
+        # Local Cache
+        logger.info("Getting local cached results on redis")
+        local_cached_results = search_redis(media)
+        if local_cached_results:
             # cached_results = [JackettResult().from_cached_item(torrent, media) for torrent in cached_results]
-            logger.info(f"Got {len(cached_results)} cached results")
+            logger.info(f"Got {len(local_cached_results)} local cached results from redis")
+        else:
+            logger.info("No local cached results found on redis")
+            local_cached_results = []
+
+        # Public Cache
+        logger.info("Getting public cached results online")
+        public_cached_results = search_public(media)
+        if public_cached_results:
+            logger.info(f"Got {len(public_cached_results)} public cached results")
+            public_cached_results = [JackettResult().from_cached_item(torrent, media) for torrent in public_cached_results]
+            logger.info(f"Convert {len(public_cached_results)} public cached results to TorrentItems")
+            public_cached_results = filter_items(public_cached_results, media, config=config)
+            logger.info(f"Filter {len(public_cached_results)} cached results")
+            public_cached_results = torrent_service.convert_and_process(public_cached_results)
+        else:
+            logger.info("No public cached results found")
+            public_cached_results = []
+
+        cached_results = local_cached_results + public_cached_results
+        if cached_results:
+            logger.info(f"Got {len(cached_results)} total cached results")
+            search_results = cached_results
         else:
             logger.info("No cached results found")
-            cached_results = []
-
-        if cached_results:
-            logger.info("Filtering cached results")
-            search_results = filter_items(cached_results, media, config=config)
-            logger.info(f"Filtered cached results. Remaining: {len(search_results)}")
-        else:
             search_results = []
 
     # TODO: if we have results per quality set, most of the time we will not have enough cached results AFTER filtering them
@@ -171,21 +189,29 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         jackett_search_results = jackett_service.search(media)
         logger.info("Got " + str(len(jackett_search_results)) + " results from Jackett")
 
-        if config['cache'] and jackett_search_results:
-            cache_results(jackett_search_results, media)
-
         logger.info("Filtering Jackett results")
         filtered_jackett_search_results = filter_items(jackett_search_results, media, config=config)
         logger.info("Filtered Jackett results")
 
-        search_results.extend(filtered_jackett_search_results)
+        if filtered_jackett_search_results:
+            logger.debug("Converting result to TorrentItems (results: " + str(len(search_results)) + ")")
+            torrent_results = torrent_service.convert_and_process(filtered_jackett_search_results)
+            logger.debug("Converted result to TorrentItems (results: " + str(len(torrent_results)) + ")")
 
-    logger.debug("Converting result to TorrentItems (results: " + str(len(search_results)) + ")")
-    torrent_service = TorrentService()
-    torrent_results = torrent_service.convert_and_process(search_results)
-    logger.debug("Converted result to TorrentItems (results: " + str(len(torrent_results)) + ")")
+        if config['cache'] and torrent_results:
+            logger.debug("Caching TorrentItems (results: " + str(len(torrent_results)) + ")" )
+            cache_redis(torrent_results, media)
 
-    torrent_smart_container = TorrentSmartContainer(torrent_results, media)
+        if not search_results:
+            search_results = torrent_results
+        elif torrent_results and search_results:
+                search_results = merge_items(search_results, torrent_results)
+        else:
+            logger.info("No results found")
+            torrent_results = []
+    
+
+    torrent_smart_container = TorrentSmartContainer(search_results, media)
 
     if config['debrid']:
         logger.debug("Checking availability")
@@ -195,8 +221,9 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         torrent_smart_container.update_availability(result, type(debrid_service), media)
         logger.debug("Checked availability (results: " + str(len(result.items())) + ")")
 
-    # if config['cache']:
-    #     torrent_smart_container.cache_container_items()
+    if config['cache']:
+        logger.debug("Caching public container items")
+        torrent_smart_container.cache_container_items()
 
     logger.debug("Getting best matching results")
     best_matching_results = torrent_smart_container.get_best_matching()
