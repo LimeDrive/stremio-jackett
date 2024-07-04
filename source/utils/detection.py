@@ -23,6 +23,6 @@ def detect_languages(torrent_name):
             languages.append(language)
 
     if len(languages) == 0:
-        return ["fr"]
+        return ["en"]
 
     return languages

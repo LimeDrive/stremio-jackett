@@ -67,6 +67,7 @@ function loadData() {
         }
         document.getElementById('debrid-api').value = data.debridKey;
         document.getElementById('tmdb-api').value = data.tmdbApi;
+        document.getElementById('zileanUrl').value = data.zileanUrl;
         document.getElementById('service').value = data.service;
         if (data.anonymizeMagnets !== undefined) {
             document.getElementById('anonymize-magnets').checked = data.anonymizeMagnets;
@@ -76,12 +77,17 @@ function loadData() {
         document.getElementById('maxSize').value = data.maxSize;
         document.getElementById('resultsPerQuality').value = data.resultsPerQuality;
         document.getElementById('maxResults').value = data.maxResults;
+        document.getElementById('minCachedResults').value = data.minCachedResults;
         if (document.getElementById('jackett')) {
             document.getElementById('jackett').checked = data.jackett;
         }
         if (document.getElementById('cache')) {
             document.getElementById('cache').checked = data.cache;
         }
+        if (document.getElementById('zilean')) {
+            document.getElementById('zilean').checked = data.zilean;
+        }
+
         document.getElementById('torrenting').checked = data.torrenting;
         document.getElementById('debrid').checked = data.debrid;
         document.getElementById('tmdb').checked = data.metadataProvider === 'tmdb';
@@ -130,14 +136,17 @@ function getLink(method) {
     const jackettApi = document.getElementById('jackett-api')?.value;
     const debridApi = document.getElementById('debrid-api').value;
     const tmdbApi = document.getElementById('tmdb-api').value;
+    const zileanUrl = document.getElementById('zileanUrl').value;
     const service = document.getElementById('service').value;
     const anonymizeMagnets = document.getElementById('anonymize-magnets').checked;
     const exclusionKeywords = document.getElementById('exclusion-keywords').value.split(',').map(keyword => keyword.trim()).filter(keyword => keyword !== '');
     let maxSize = document.getElementById('maxSize').value;
     let resultsPerQuality = document.getElementById('resultsPerQuality').value;
     let maxResults = document.getElementById('maxResults').value;
+    let minCachedResults = document.getElementById('minCachedResults').value;
     const jackett = document.getElementById('jackett')?.checked;
     const cache = document.getElementById('cache')?.checked;
+    const zilean = document.getElementById('zilean')?.checked;
     const torrenting = document.getElementById('torrenting').checked;
     const debrid = document.getElementById('debrid').checked;
     const metadataProvider = document.getElementById('tmdb').checked ? 'tmdb' : 'cinemeta';
@@ -167,13 +176,16 @@ function getLink(method) {
     });
 
     if (maxSize === '' || isNaN(maxSize)) {
-        maxSize = 0;
+        maxSize = 16;
     }
     if (maxResults === '' || isNaN(maxResults)) {
         maxResults = 5;
     }
     if (resultsPerQuality === '' || isNaN(resultsPerQuality)) {
-        resultsPerQuality = 1;
+        resultsPerQuality = 5;
+    }
+    if (minCachedResults === '' || isNaN(minCachedResults)) {
+        minCachedResults = 5;
     }
     let data = {
         addonHost,
@@ -188,15 +200,18 @@ function getLink(method) {
         'sort': filter,
         resultsPerQuality,
         maxResults,
+        minCachedResults,
         'exclusion': selectedQualityExclusion,
         tmdbApi,
+        zileanUrl,
         jackett,
         cache,
+        zilean,
         torrenting,
         debrid,
         metadataProvider
     };
-    if ((jackett && (jackettHost === '' || jackettApi === '')) || (debrid && debridApi === '') || (metadataProvider === 'tmdb' && tmdbApi === '') || languages.length === 0) {
+    if ((jackett && (jackettHost === '' || jackettApi === '')) || (zilean && zileanUrl === '') || (debrid && debridApi === '') || (metadataProvider === 'tmdb' && tmdbApi === '') || languages.length === 0) {
         alert('Please fill all required fields');
         return false;
     }

@@ -44,11 +44,14 @@ class ZileanResult:
         if type(api_cached_item) is not dict:
             logger.error(api_cached_item)
 
+        self.info_hash = api_cached_item['infoHash']
+        if len(self.info_hash) != 40:
+            raise ValueError(f"The hash '{self.info_hash}' does not have the expected length of 40 characters.")
+
         parsed_result = parse(api_cached_item['filename'])
 
         self.raw_title = parsed_result.raw_title
         self.indexer = "DMM API"
-        self.info_hash = api_cached_item['infoHash']
         self.magnet = "magnet:?xt=urn:btih:" + self.info_hash
         self.link = self.magnet
         self.languages = detect_languages(self.raw_title)

@@ -42,13 +42,17 @@ class JackettResult:
         if type(cached_item) is not dict:
             logger.error(cached_item)
 
+        self.info_hash = cached_item['hash']
+
+        if len(self.info_hash) != 40:
+            raise ValueError(f"The hash '{self.info_hash}' does not have the expected length of 40 characters.")
+        
         parsed_result = parse(cached_item['title'])
 
         self.raw_title = cached_item['title']
         self.indexer = "Cache Public"  # Cache doesn't return an indexer sadly (It stores it tho)
         self.magnet = cached_item['magnet']
         self.link = cached_item['magnet']
-        self.info_hash = cached_item['hash']
         self.languages = cached_item['language'].split(";") if cached_item['language'] is not None else []
         self.seeders = cached_item['seeders']
         self.size = cached_item['size']

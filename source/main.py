@@ -83,7 +83,6 @@ async def root():
 @app.get("/configure")
 @app.get("/{config}/configure")
 async def configure(request: Request):
-    logger.debug(f"X-Real-IP: {request.headers.get("X-Real-IP")} X-Forwarded-For: {request.headers.get("X-Forwarded-For")}")
     return templates.TemplateResponse(
         "index.html",
         {"request": request},
@@ -127,7 +126,9 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
     start = time.time()
     stream_id = stream_id.replace(".json", "")
 
+
     config = parse_config(config)
+    logger.debug(f"Parsed Config dict : {config}")
     logger.info(stream_type + " request")
 
     logger.info(f"Getting media from {config['metadataProvider']}")
@@ -144,7 +145,6 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
     torrent_service = TorrentService()
 
     if config['cache']:
-
         # Local Cache
         logger.info("Getting local cached results on redis")
         local_cached_results = search_redis(media)
@@ -160,15 +160,22 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         public_cached_results = search_public(media)
         if public_cached_results:
             logger.info(f"Got {len(public_cached_results)} public cached results")
-            public_cached_results = [JackettResult().from_cached_item(torrent, media) for torrent in public_cached_results]
+            public_results = []
+            for torrent in public_cached_results:
+                try:
+                    result = JackettResult().from_cached_item(torrent, media)
+                    public_results.append(result)
+                except ValueError as e:
+                    logger.warning(f"Invalid hash length for torrent: {torrent.get('hash', '')}. Torrent ignored.")
+            public_cached_results = public_results if public_results else []
             logger.info(f"Convert {len(public_cached_results)} public cached results to TorrentItems")
-            public_cached_results = filter_items(public_cached_results, media, config=config)
-            logger.info(f"Filter {len(public_cached_results)} cached results")
-            public_cached_results = torrent_service.convert_and_process(public_cached_results)
+            if public_cached_results:
+                public_cached_results = filter_items(public_cached_results, media, config=config)
+                logger.info(f"Filter {len(public_cached_results)} cached results")
+                public_cached_results = torrent_service.convert_and_process(public_cached_results)
         else:
             logger.info("No public cached results found")
             public_cached_results = []
-
         cached_results = local_cached_results + public_cached_results
         if cached_results:
             logger.info(f"Got {len(cached_results)} total cached results")
@@ -177,17 +184,24 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
             logger.info("No cached results found")
             search_results = []
 
-    if config["zilean"] and len(search_results) < 5:  # TODO: make this configurable
+    if config["zilean"] and len(search_results) < int(config["minCachedResults"]):  # TODO: make this configurable
         zilean_service = ZileanService(config)
         zilean_search_results = zilean_service.search(media)
         if zilean_search_results:
             logger.info(f"Got {len(zilean_search_results)} results from Zilean")
-            zilean_search_results = [ZileanResult().from_api_cached_item(torrent, media) for torrent in zilean_search_results]
-            logger.info(f"Convert {len(zilean_search_results)} Zilean results to TorrentItems")
-            zilean_search_results = filter_items(zilean_search_results, media, config=config)
-            logger.info(f"Filter {len(zilean_search_results)} Zilean results")
-            zilean_search_results = torrent_service.convert_and_process(zilean_search_results)
-
+            zilean_results = []
+            for torrent in zilean_search_results:
+                try:
+                    result = ZileanResult().from_api_cached_item(torrent, media)
+                    zilean_results.append(result)
+                except ValueError as e:
+                    logger.warning(f"Invalid hash length for torrent: {torrent.get('infoHash', '')}. Torrent ignored.")
+            zilean_search_results = zilean_results if zilean_results else []
+            if zilean_search_results:
+                logger.info(f"Convert {len(zilean_search_results)} Zilean results to TorrentItems")
+                zilean_search_results = filter_items(zilean_search_results, media, config=config)
+                logger.info(f"Filter {len(zilean_search_results)} Zilean results")
+                zilean_search_results = torrent_service.convert_and_process(zilean_search_results)
         if not search_results:
             search_results = zilean_search_results
         elif zilean_search_results and search_results:
@@ -195,11 +209,8 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         else:
             logger.info("No results found on DMM API")
             search_results = []
-            
-    # TODO: if we have results per quality set, most of the time we will not have enough cached results AFTER filtering them
-    # because we will have less results than the maxResults, so we will always have to search for new results
 
-    if config['jackett'] and len(search_results) < 5: # TODO: make this configurable
+    if config['jackett'] and len(search_results) < int(config["minCachedResults"]):
         if len(search_results) > 0 and config['cache']:
             logger.info("Not enough cached results found (results: " + str(len(search_results)) + ")")
         elif config['cache']:
@@ -219,10 +230,6 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
             torrent_results = torrent_service.convert_and_process(filtered_jackett_search_results)
             logger.debug("Converted result to TorrentItems (results: " + str(len(torrent_results)) + ")")
 
-        if config['cache'] and torrent_results:
-            logger.debug("Caching TorrentItems (results: " + str(len(torrent_results)) + ")" )
-            cache_redis(torrent_results, media)
-
         if not search_results:
             search_results = torrent_results
         elif torrent_results and search_results:
@@ -230,9 +237,14 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         else:
             logger.info("No results found")
             torrent_results = []
-    
 
+    if config['cache'] and search_results:
+        logger.debug("Caching TorrentItems (results: " + str(len(search_results)) + ")" )
+        cache_redis(search_results, media)
+
+    logger.debug("Creating TorrentSmartContainer (results: " + str(len(search_results)) + ")")
     torrent_smart_container = TorrentSmartContainer(search_results, media)
+    logger.debug("Created TorrentSmartContainer")
 
     if config['debrid']:
         logger.debug("Checking availability")
@@ -351,7 +363,8 @@ async def update_app():
 
 @crontab("* * * * *", start=not isDev)
 async def schedule_task():
-    await update_app()
+    # await update_app()
+    pass
 
 
 async def main():

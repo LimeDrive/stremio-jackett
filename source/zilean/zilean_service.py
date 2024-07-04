@@ -1,14 +1,13 @@
 import requests
 
 from utils.logger import setup_logger
-from constants import DMM_SEARCH_API_URL
 
 logger = setup_logger(__name__)
 
 
 class ZileanService:
-    def __init__(self, config, base_url=DMM_SEARCH_API_URL):
-        self.base_url = base_url
+    def __init__(self, config):
+        self.base_url = config["zileanUrl"]
         self.search_endpoint = "/dmm/search"
         self.session = requests.Session()
 
