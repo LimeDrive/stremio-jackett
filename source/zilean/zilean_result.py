@@ -18,6 +18,7 @@ class ZileanResult:
         self.magnet = None  # Magnet url
         self.info_hash = None  # infoHash by Jackett
         self.privacy = None  # public or private
+        self.from_cache = None
 
         # Extra processed details for further filtering
         self.languages = None  # Language of the torrent
@@ -59,6 +60,7 @@ class ZileanResult:
         self.size = api_cached_item['filesize']
         self.type = media.type
         self.privacy = "private"
+        self.from_cache = True
         self.parsed_data = parsed_result
 
         return self

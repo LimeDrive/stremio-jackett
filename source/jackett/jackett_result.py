@@ -16,6 +16,7 @@ class JackettResult:
         self.magnet = None  # Magnet url
         self.info_hash = None  # infoHash by Jackett
         self.privacy = None  # public or private
+        self.from_cache = None
 
         # Extra processed details for further filtering
         self.languages = None  # Language of the torrent
@@ -57,6 +58,7 @@ class JackettResult:
         self.seeders = cached_item['seeders']
         self.size = cached_item['size']
         self.type = media.type
+        self.from_cache = True
         self.parsed_data = parsed_result
 
         return self
