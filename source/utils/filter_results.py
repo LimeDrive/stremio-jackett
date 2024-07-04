@@ -1,4 +1,5 @@
 from typing import List
+
 from RTN import title_match, RTN, DefaultRanking, SettingsModel, sort_torrents
 
 from utils.filter.language_filter import LanguageFilter
@@ -15,28 +16,26 @@ quality_order = {"4k": 0, "2160p": 0, "1080p": 1, "720p": 2, "480p": 3}
 
 
 def sort_quality(item):
+    logger.debug(f"Evaluating quality for item: {item.raw_title}")
     if len(item.parsed_data.data.resolution) == 0:
-        return float('inf'), True
-
-    # TODO: first resolution?
-    return quality_order.get(item.parsed_data.data.resolution[0],
-                             float('inf')), item.parsed_data.data.resolution is None
+        logger.debug("No resolution found, assigning lowest priority")
+        return float("inf"), True
+    resolution = item.parsed_data.data.resolution[0]
+    priority = quality_order.get(resolution, float("inf"))
+    logger.debug(f"Resolution found: {resolution}, assigned priority: {priority}")
+    return priority, item.parsed_data.data.resolution is None
 
 
 def items_sort(items, config):
-# TODO: Revwiew sorting, ep_number, season_number are manage by RTN we should use it.
-# TODO: Add custom sorting config.
+    logger.info(f"Starting item sorting. Sort method: {config['sort']}")
     settings = SettingsModel(
         require=[],
-        exclude=config['exclusionKeywords'] + config['exclusion'],
+        exclude=config["exclusionKeywords"] + config["exclusion"],
         preferred=[],
-        # custom_ranks={
-        #     "uhd": CustomRank(enable=True, fetch=True, rank=200),
-        #     "hdr": CustomRank(enable=True, fetch=True, rank=100),
-        # }
     )
 
     rtn = RTN(settings=settings, ranking_model=DefaultRanking())
+    logger.debug("Applying RTN ranking to items")
     torrents = [rtn.rank(item.raw_title, item.info_hash) for item in items]
     sorted_torrents = sort_torrents(set(torrents))
 
@@ -44,123 +43,145 @@ def items_sort(items, config):
         index = next((i for i, item in enumerate(items) if item.info_hash == key), None)
         if index is not None:
             items[index].parsed_data = value
+            logger.debug(f"Updated parsed data for item with info_hash: {key}")
 
-    logger.info(items)
+    logger.info(f"Sorting items by method: {config['sort']}")
+    if config["sort"] == "quality":
+        sorted_items = sorted(items, key=sort_quality)
+    elif config["sort"] == "sizeasc":
+        sorted_items = sorted(items, key=lambda x: int(x.size))
+    elif config["sort"] == "sizedesc":
+        sorted_items = sorted(items, key=lambda x: int(x.size), reverse=True)
+    elif config["sort"] == "qualitythensize":
+        sorted_items = sorted(items, key=lambda x: (sort_quality(x), -int(x.size)))
+    else:
+        logger.warning(
+            f"Unrecognized sort method: {config['sort']}. No sorting applied."
+        )
+        sorted_items = items
 
-    if config['sort'] == "quality":
-        return sorted(items, key=sort_quality)
-    if config['sort'] == "sizeasc":
-        return sorted(items, key=lambda x: int(x.size))
-    if config['sort'] == "sizedesc":
-        return sorted(items, key=lambda x: int(x.size), reverse=True)
-    if config['sort'] == "qualitythensize":
-        return sorted(items, key=lambda x: (sort_quality(x), -int(x.size)))
-    return items
+    logger.info(f"Sorting complete. Number of sorted items: {len(sorted_items)}")
+    return sorted_items
 
 
-# def filter_season_episode(items, season, episode, config):
-#     filtered_items = []
-#     for item in items:
-#         if config['language'] == "ru":
-#             if "S" + str(int(season.replace("S", ""))) + "E" + str(
-#                     int(episode.replace("E", ""))) not in item['title']:
-#                 if re.search(rf'\bS{re.escape(str(int(season.replace("S", ""))))}\b', item['title']) is None:
-#                     continue
-#         if re.search(rf'\b{season}\s?{episode}\b', item['title']) is None:
-#             if re.search(rf'\b{season}\b', item['title']) is None:
-#                 continue
-
-#         filtered_items.append(item)
-#     return filtered_items
-
-# TODO: not needed anymore because of RTN
 def filter_out_non_matching(items, season, episode):
+    logger.info(
+        f"Filtering non-matching items for season {season} and episode {episode}"
+    )
     filtered_items = []
+    clean_season = season.replace("S", "")
+    clean_episode = episode.replace("E", "")
+    numeric_season = int(clean_season)
+    numeric_episode = int(clean_episode)
+
     for item in items:
-        clean_season = season.replace("S", "")
-        clean_episode = episode.replace("E", "")
-        numeric_season = int(clean_season)
-        numeric_episode = int(clean_episode)
-
+        logger.debug(f"Checking item: {item.raw_title}")
         if len(item.parsed_data.season) == 0 and len(item.parsed_data.episode) == 0:
+            logger.debug("Item with no season and episode, skipped")
             continue
-
-        if len(item.parsed_data.episode) == 0 and numeric_season in item.parsed_data.season:
+        if (
+            len(item.parsed_data.episode) == 0
+            and numeric_season in item.parsed_data.season
+        ):
+            logger.debug("Season match found, episode not specified")
+            filtered_items.append(item)
+            continue
+        if (
+            numeric_season in item.parsed_data.season
+            and numeric_episode in item.parsed_data.episode
+        ):
+            logger.debug("Exact season and episode match found")
             filtered_items.append(item)
             continue
 
-        if numeric_season in item.parsed_data.season and numeric_episode in item.parsed_data.episode:
-            filtered_items.append(item)
-            continue
-
-
+    logger.info(
+        f"Filtering complete. {len(filtered_items)} matching items found out of {len(items)} total"
+    )
     return filtered_items
 
 
 def remove_non_matching_title(items, titles):
-    logger.info(titles)
+    logger.info(f"Removing items not matching titles: {titles}")
     filtered_items = []
     for item in items:
+        logger.debug(f"Checking title for item: {item.raw_title}")
         for title in titles:
-            if not title_match(title, item.parsed_data.parsed_title):
-                continue
+            if title_match(title, item.parsed_data.parsed_title):
+                logger.debug(f"Match found with title: {title}")
+                filtered_items.append(item)
+                break
+        else:
+            logger.debug("No title match found, item skipped")
 
-            filtered_items.append(item)
-            break
-
+    logger.info(
+        f"Title filtering complete. {len(filtered_items)} items kept out of {len(items)} total"
+    )
     return filtered_items
 
 
 def filter_items(items, media, config):
+    logger.info(f"Starting item filtering for media: {media.titles[0]}")
     filters = {
         "languages": LanguageFilter(config),
-        "maxSize": MaxSizeFilter(config, media.type),  # Max size filtering only happens for movies, so it
+        "maxSize": MaxSizeFilter(config, media.type),
         "exclusionKeywords": TitleExclusionFilter(config),
         "exclusion": QualityExclusionFilter(config),
-        "resultsPerQuality": ResultsPerQualityFilter(config)
+        "resultsPerQuality": ResultsPerQualityFilter(config),
     }
 
-    # Filtering out 100% non-matching for series
-    logger.info(f"Item count before filtering: {len(items)}")
-    if media.type == "series":
-        logger.info(f"Filtering out non matching series torrents")
-        items = filter_out_non_matching(items, media.season, media.episode)
-        logger.info(f"Item count changed to {len(items)}")
+    logger.info(f"Initial item count: {len(items)}")
 
-    # TODO: is titles[0] always the correct title? Maybe loop through all titles and get the highest match?
+    if media.type == "series":
+        logger.info(f"Filtering out non-matching series torrents")
+        items = filter_out_non_matching(items, media.season, media.episode)
+        logger.info(f"Item count after season/episode filtering: {len(items)}")
+
     items = remove_non_matching_title(items, media.titles)
+    logger.info(f"Item count after title filtering: {len(items)}")
 
     for filter_name, filter_instance in filters.items():
         try:
-            logger.info(f"Filtering by {filter_name}: " + str(config[filter_name]))
+            logger.info(f"Applying {filter_name} filter: {config[filter_name]}")
             items = filter_instance(items)
-            logger.info(f"Item count changed to {len(items)}")
+            logger.info(f"Item count after {filter_name} filter: {len(items)}")
         except Exception as e:
-            logger.error(f"Error while filtering by {filter_name}", exc_info=e)
-    logger.info(f"Item count after filtering: {len(items)}")
-    logger.info("Finished filtering torrents")
+            logger.error(f"Error while applying {filter_name} filter", exc_info=e)
 
+    logger.info(f"Filtering complete. Final item count: {len(items)}")
     return items
 
 
 def sort_items(items, config):
-    if config['sort'] is not None:
+    if config["sort"] is not None:
+        logger.info(f"Sorting items according to config: {config['sort']}")
         return items_sort(items, config)
     else:
+        logger.info("No sorting specified, returning items in original order")
         return items
 
-def merge_items(cache_items: List[TorrentItem], shearch_items: List[TorrentItem]) -> List[TorrentItem]:
+
+def merge_items(
+    cache_items: List[TorrentItem], search_items: List[TorrentItem]
+) -> List[TorrentItem]:
+    logger.info(
+        f"Merging cached items ({len(cache_items)}) and search items ({len(search_items)})"
+    )
     merged_dict = {}
+
     def add_to_merged(item):
-            if item.raw_title not in merged_dict:
+        if item.raw_title not in merged_dict:
+            merged_dict[item.raw_title] = item
+            logger.debug(f"New item added: {item.raw_title}")
+        else:
+            if item.seeders > merged_dict[item.raw_title].seeders:
+                logger.debug(f"Updated item with more seeders: {item.raw_title}")
                 merged_dict[item.raw_title] = item
-            else:
-                # if dupes, keep the one with the most seeders
-                if item.seeders > merged_dict[item.raw_title].seeders:
-                    merged_dict[item.raw_title] = item
 
     for item in cache_items:
         add_to_merged(item)
-    for item in shearch_items:
+    for item in search_items:
         add_to_merged(item)
-    return list(merged_dict.values())
+
+    merged_items = list(merged_dict.values())
+    logger.info(f"Merging complete. Total unique items: {len(merged_items)}")
+    return merged_items

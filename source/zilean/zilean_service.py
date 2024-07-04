@@ -1,8 +1,11 @@
+import re
 import requests
 
-from utils.logger import setup_logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-logger = setup_logger(__name__)
+from utils.logger import setup_logger
+from models.movie import Movie
+from models.series import Series
 
 
 class ZileanService:
@@ -10,16 +13,80 @@ class ZileanService:
         self.base_url = config["zileanUrl"]
         self.search_endpoint = "/dmm/search"
         self.session = requests.Session()
+        self.logger = setup_logger(__name__)
+        self.max_workers = config.get("max_workers", 4)
 
     def search(self, media):
-        url = self.base_url + self.search_endpoint
+        if isinstance(media, Movie):
+            return self.__search_movie(media)
+        elif isinstance(media, Series):
+            return self.__search_series(media)
+        else:
+            raise TypeError("Only Movie and Series are allowed as media!")
+
+    def __clean_title(self, title):
+        pronouns_to_remove = [
+            'le', 'la', 'les', 'l\'', 'un', 'une', 'des', 'du', 'de', 'à', 'au', 'aux',
+            'the', 'a', 'an', 'some', 'of', 'to', 'at', 'in', 'on', 'for',
+            'he', 'she', 'it', 'they', 'we', 'you', 'i', 'me', 'him', 'her', 'them', 'us',
+            'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles', 'je', 'tu', 'moi', 'toi', 'lui'
+        ]
+        title = title.lower()
+        title = re.sub(r'[^a-zA-Z0-9\s]', ' ', title)
+        words = title.split()
+        words = [word for word in words if word not in pronouns_to_remove]
+        cleaned_title = ' '.join(words)
+        cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip()
+        return cleaned_title
+    
+    def __deduplicate_api_results(self, api_results):
+        unique_results = set()
+        deduplicated_results = []
+
+        for result in api_results:
+            result_tuple = tuple(sorted(result.items()))
+            
+            if result_tuple not in unique_results:
+                unique_results.add(result_tuple)
+                deduplicated_results.append(result)
+
+        return deduplicated_results
+    
+    def __search_movie(self, movie):
+        clean_titles = [self.__clean_title(title) for title in movie.titles]
+        return self.__threaded_search(clean_titles)
+
+    def __search_series(self, series):
+        clean_titles = [self.__clean_title(title) for title in series.titles]
+        search_texts = clean_titles.copy()
+
+        if hasattr(series, 'season') and hasattr(series, 'episode'):
+            search_texts.extend([f"{title} {series.season}{series.episode}" for title in clean_titles])
+
+        return self.__threaded_search(search_texts)
+
+    def __threaded_search(self, search_texts):
+        results = []
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_text = {executor.submit(self.__make_request, text): text for text in search_texts}
+            for future in as_completed(future_to_text):
+                results.extend(future.result())
+        return self.__deduplicate_api_results(results)
+
+    def __make_request(self, query_text):
+        payload = {"queryText": query_text}
         headers = {"Content-Type": "application/json"}
-        payload = {"queryText": media.titles[0]}
+        url = self.base_url + self.search_endpoint
 
         try:
-            response = self.session.post(url, json=payload, headers=headers)
+            response = self.session.post(url, json=payload, headers=headers, timeout=10)
             response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            logger.warning(f"Une erreur s'est produite lors de la requête : {e}")
-            return None
+            json_response = response.json()
+            if isinstance(json_response, list):
+                return json_response
+            else:
+                self.logger.warning(f"Unexpected response format for query: {query_text}")
+                return []
+        except Exception as e:
+            self.logger.exception(f"An exception occurred while searching for '{query_text}' on Zilean: {str(e)}")
+            return []

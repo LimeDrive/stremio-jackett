@@ -267,9 +267,8 @@ class JackettService:
     def __post_process_results(self, results, media):
         for result in results:
             parsed_result = parse(result.raw_title)
+            
             result.parsed_data = parsed_result
-            self.logger.info(f"Parsed result: {parsed_result}")
-
             result.languages = detect_languages(result.raw_title)
             result.type = media.type
 

@@ -18,18 +18,18 @@ DIRECT_TORRENT = "[🏴‍☠️]"
 # TODO: Languages
 def get_emoji(language):
     emoji_dict = {
-        "fr": "🇫🇷",
-        "en": "🇬🇧",
-        "es": "🇪🇸",
-        "de": "🇩🇪",
-        "it": "🇮🇹",
-        "pt": "🇵🇹",
-        "ru": "🇷🇺",
-        "in": "🇮🇳",
-        "nl": "🇳🇱",
-        "hu": "🇭🇺",
-        "la": "🇲🇽",
-        "multi": "🌍"
+        "fr": "🇫🇷 FRENCH",
+        "en": "🇬🇧 ENGLISH",
+        "es": "🇪🇸 SPANISH",
+        "de": "🇩🇪 GERMAN",
+        "it": "🇮🇹 ITALIAN",
+        "pt": "🇵🇹 PORTUGUESE",
+        "ru": "🇷🇺 RUSSIAN",
+        "in": "🇮🇳 INDIAN",
+        "nl": "🇳🇱 DUTCH",
+        "hu": "🇭🇺 HUNGARIAN",
+        "la": "🇲🇽 LATINO",
+        "multi": "🌍 MULTi",
     }
     return emoji_dict.get(language, "🇬🇧")
 
@@ -56,7 +56,7 @@ def parse_to_debrid_stream(torrent_item: TorrentItem, configb64, host, torrentin
 
     parsed_data = torrent_item.parsed_data.data
 
-    resolution = parsed_data.resolution[0] if parsed_data.resolution else "????"
+    resolution = parsed_data.resolution[0] if parsed_data.resolution else "Unknow"
     name += f"{resolution}"
 
     if parsed_data.quality:
@@ -81,7 +81,6 @@ def parse_to_debrid_stream(torrent_item: TorrentItem, configb64, host, torrentin
     # Gestion des langues
     if torrent_item.languages:
         title += "/".join(get_emoji(language) for language in torrent_item.languages)
-        title = title[:-1]
     else:
         title += "🌐"
 
