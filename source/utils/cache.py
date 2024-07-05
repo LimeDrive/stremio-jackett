@@ -11,6 +11,8 @@ from utils.logger import setup_logger
 from torrent.torrent_item import TorrentItem
 from jackett.jackett_result import JackettResult
 from constants import CACHER_URL, EXCLUDED_TRACKERS
+from models.movie import Movie
+from models.series import Series
 
 logger = setup_logger(__name__)
 
@@ -21,10 +23,17 @@ CACHE_EXPIRATION_TIME = 48 * 60 * 60
 
 
 def search_redis(media):
+
+    def cache_key(media):
+        if isinstance(media, Movie):
+            return f"movie:{media.titles[0]}:{media.languages[0]}"
+        elif isinstance(media, Series):
+            return f"series:{media.titles[0]}:{media.languages[0]}:{media.season}"
+        else:
+            raise TypeError("Only Movie and Series are allowed as media!")
     try:
         logger.info(f"Searching for cached {media.type} results")
-        cache_key = f"{media.type}:{media.titles[0]}:{media.languages[0]}"
-        cached_result = redis_client.get(cache_key)
+        cached_result = redis_client.get(cache_key(media))
         return pickle.loads(cached_result) if cached_result else []
     except Exception as e:
         logger.error(f"Error in search_cache: {str(e)}")
@@ -37,6 +46,14 @@ def cache_redis(torrents: List[JackettResult], media):
 
     logger.info("Started caching results")
 
+    def cache_key(media):
+        if isinstance(media, Movie):
+            return f"movie:{media.titles[0]}:{media.languages[0]}"
+        elif isinstance(media, Series):
+            return f"series:{media.titles[0]}:{media.languages[0]}:{media.season}"
+        else:
+            raise TypeError("Only Movie and Series are allowed as media!")
+
     cached_torrents = []
     for torrent in torrents:
         try:
@@ -48,10 +65,10 @@ def cache_redis(torrents: List[JackettResult], media):
             logger.error(f"Failed to create cached copy of torrent: {str(e)}")
 
     try:
-        cache_key = f"{media.type}:{media.titles[0]}:{media.languages[0]}"
+        key = cache_key(media)
         pickled_data = pickle.dumps(cached_torrents)
-        redis_client.set(cache_key, pickled_data)
-        redis_client.expire(cache_key, CACHE_EXPIRATION_TIME)
+        redis_client.set(key, pickled_data)
+        redis_client.expire(key, CACHE_EXPIRATION_TIME)
 
         logger.info(f"Cached {len(cached_torrents)} {media.type} results")
     except Exception as e:
