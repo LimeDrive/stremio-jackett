@@ -360,16 +360,14 @@ async def head_playback(config: str, query: str, request: Request):
         decoded_query = decodeb64(query)
         ip = request.client.host
         cache_key = f"{decoded_query}_{ip}"
-
+        
         if cache_key in stream_cache:
-            return web.Response(status=200)
+            logger.debug(f"HEAD request: Cache hit for {cache_key}")
+            return Response(status_code=status.HTTP_200_OK)
         else:
-            link = get_cached_stream_link(decoded_query, config, ip)
-            if link:
-                stream_cache[cache_key] = link
-                return web.Response(status=200)
-            else:
-                return web.Response(status=404)
+            logger.debug(f"HEAD request: Cache miss for {cache_key}")
+            time.sleep(0.1)
+            return Response(status_code=status.HTTP_200_OK) 
     except Exception as e:
         logger.error(f"HEAD request error: {e}")
         return web.Response(status=500)
