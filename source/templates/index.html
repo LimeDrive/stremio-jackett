@@ -56,8 +56,7 @@
             <img src="https://user-images.githubusercontent.com/27040483/28728094-99f3e3f6-73c7-11e7-8f8d-28912dc6ac0d.png"
                 alt="logo" style="width: 100px; height: 100px;">
             <div class="space-y-12">
-                <p class="dark:text-white text-center">Stremio-Jackett{% if isCommunityVersion %} Community{% endif %}
-                    v4.1.6</p>
+                <p class="dark:text-white text-center">Stremio-Jackett Rework</p>
                 <h1 class="text-base font-semibold leading-7 text-gray-900 dark:text-white"
                     style="text-align: center;font-size: 2rem;">
                     Addon configuration</h1>
@@ -94,8 +93,6 @@
                         </div>
                     </div>
                 </div>
-
-                {% if not isCommunityVersion %}
 
                 <div class="border-b border-gray-900/10 dark:border-white/50 pb-12">
                     <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Torrent Providers</h2>
@@ -141,6 +138,37 @@
                     </div>
                 </div>
 
+                <div class="border-b border-gray-900/10 dark:border-white/50 pb-12" id="redis-fields">
+                    <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Redis Information</h2>
+                    <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">You will enter information about
+                        your
+                        Redis server here</p>
+
+                    <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                        <div class="sm:col-span-3">
+                            <label for="redis-host" class="block text-sm font-medium mb-2 dark:text-white">Redis
+                                Host</label>
+                            <div class="mt-2">
+                                <input oninput="" type="text" name="redis-host" id="redis-host"
+                                    autocomplete="jackett-host"
+                                    class="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-700 dark:text-gray-400 dark:focus:ring-gray-600"
+                                    placeholder=" without http without port">
+                            </div>
+                        </div>
+
+                        <div class="sm:col-span-3">
+                            <label for="redis-port" class="block text-sm font-medium mb-2 dark:text-white">Redis Port</label>
+                            <div class="mt-2">
+                                <input oninput="" type="text" name="redis-port" id="redis-port"
+                                    autocomplete="redis-port"
+                                    class="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-700 dark:text-gray-400 dark:focus:ring-gray-600"
+                                    placeholder="6379">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
                 <div class="border-b border-gray-900/10 dark:border-white/50 pb-12" id="jackett-fields">
                     <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Jackett Information</h2>
                     <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">You will enter information about
@@ -171,8 +199,6 @@
                         </div>
                     </div>
                 </div>
-
-                {% endif %}
 
                 <div class="border-b border-gray-900/10 dark:border-white/50 pb-12" id="debrid-fields">
                     <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Debrid Information</h2>
@@ -208,7 +234,7 @@
                                 <input type="checkbox" id="anonymize-magnets" name="anonymize-magnets"
                                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600">
                                 <label for="anonymize-magnets" class="ml-2 block text-sm text-gray-900 dark:text-white">
-                                    Anonymiser les liens magnets
+                                /!\ Anon MagnetLink /!\
                                 </label>
                             </div>
                         </div>
@@ -266,10 +292,10 @@
                     </div>
                 </div>
 
-                <div class="border-b border-gray-900/10 dark:border-white/50 pb-12" id="tmdb-fields">
-                    <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Community Cache
-                        DMM</h2>
-                    <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">Please fill your Zilean Community
+                <div class="border-b border-gray-900/10 dark:border-white/50 pb-12" id="zilean-fields">
+                    <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Zilean Cache
+                        DMM API</h2>
+                    <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">Please fill your Zilean DMM API
                         Cache
                         informations here.</p>
 
@@ -281,6 +307,25 @@
                                 <input oninput="" type="text" name="zileanUrl" id="zileanUrl" autocomplete="zileanUrl"
                                     class="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-700 dark:text-gray-400 dark:focus:ring-gray-600"
                                     placeholder="Your Zilean Community Cache URL">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-b border-gray-900/10 dark:border-white/50 pb-12" id="cache-fields">
+                    <h2 class="text-base font-semibold leading-7 text-gray-900 dark:text-white">Shared Public Cache</h2>
+                    <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">Please fill your Public
+                        Cache URL
+                        informations here.</p>
+
+                    <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                        <div class="col-span-full">
+                            <label for="cacheUrl" class="block text-sm font-medium mb-2 dark:text-white">Public Cache
+                                URL</label>
+                            <div class="mt-2">
+                                <input oninput="" type="text" name="cacheUrl" id="cacheUrl" autocomplete="cacheUrl"
+                                    class="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-700 dark:text-gray-400 dark:focus:ring-gray-600"
+                                    placeholder="https://stremio-jackett-cacher.elfhosted.com/">
                             </div>
                         </div>
                     </div>

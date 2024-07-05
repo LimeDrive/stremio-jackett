@@ -37,6 +37,15 @@ function updateProviderFields(isChangeEvent = false) {
     } else {
         setElementDisplay('jackett-fields', 'none');
     }
+    if (document.getElementById('cache')?.checked) {
+        setElementDisplay('redis-fields', 'block');
+        setElementDisplay('cache-fields', 'block');
+        setElementDisplay('zilean-fields', 'block');
+    } else {
+        setElementDisplay('redis-fields', 'none');
+        setElementDisplay('cache-fields', 'none');
+        setElementDisplay('zilean-fields', 'none');
+    }
     if (document.getElementById('tmdb')?.checked) {
         setElementDisplay('tmdb-fields', 'block');
     } else {
@@ -65,9 +74,18 @@ function loadData() {
             document.getElementById('jackett-host').value = data.jackettHost;
             document.getElementById('jackett-api').value = data.jackettApiKey;
         }
+        if (document.getElementById('redis-fields')) {
+            document.getElementById('redis-host').value = data.redisHost;
+            document.getElementById('redis-port').value = data.redisPort;
+        }
+        if (document.getElementById('zilean-fields')) {
+            document.getElementById('zileanUrl').value = data.zileanUrl;
+        }
+        if (document.getElementById('cache-fields')) {
+            document.getElementById('cacheUrl').value = data.cacheUrl;
+        }
         document.getElementById('debrid-api').value = data.debridKey;
         document.getElementById('tmdb-api').value = data.tmdbApi;
-        document.getElementById('zileanUrl').value = data.zileanUrl;
         document.getElementById('service').value = data.service;
         if (data.anonymizeMagnets !== undefined) {
             document.getElementById('anonymize-magnets').checked = data.anonymizeMagnets;
@@ -134,9 +152,12 @@ function getLink(method) {
     const addonHost = new URL(window.location.href).protocol.replace(':', '') + "://" + new URL(window.location.href).host
     const jackettHost = document.getElementById('jackett-host')?.value;
     const jackettApi = document.getElementById('jackett-api')?.value;
+    const redisHost = document.getElementById('redis-host')?.value;
+    let redisPort = document.getElementById('redis-port')?.value;
     const debridApi = document.getElementById('debrid-api').value;
     const tmdbApi = document.getElementById('tmdb-api').value;
     const zileanUrl = document.getElementById('zileanUrl').value;
+    const cacheUrl = document.getElementById('cacheUrl').value;
     const service = document.getElementById('service').value;
     const anonymizeMagnets = document.getElementById('anonymize-magnets').checked;
     const exclusionKeywords = document.getElementById('exclusion-keywords').value.split(',').map(keyword => keyword.trim()).filter(keyword => keyword !== '');
@@ -187,10 +208,15 @@ function getLink(method) {
     if (minCachedResults === '' || isNaN(minCachedResults)) {
         minCachedResults = 5;
     }
+    if (redisPort === '' || isNaN(redisPort)) {
+        redisPort = 6379;
+    }
     let data = {
         addonHost,
         jackettHost,
         'jackettApiKey': jackettApi,
+        redisHost,
+        redisPort,
         service,
         anonymizeMagnets,
         'debridKey': debridApi,
@@ -204,6 +230,7 @@ function getLink(method) {
         'exclusion': selectedQualityExclusion,
         tmdbApi,
         zileanUrl,
+        cacheUrl,
         jackett,
         cache,
         zilean,
@@ -211,7 +238,7 @@ function getLink(method) {
         debrid,
         metadataProvider
     };
-    if ((jackett && (jackettHost === '' || jackettApi === '')) || (zilean && zileanUrl === '') || (debrid && debridApi === '') || (metadataProvider === 'tmdb' && tmdbApi === '') || languages.length === 0) {
+    if ((jackett && (jackettHost === '' || jackettApi === '')) || (cache && (redisHost === '' || redisPort === '')) || (zilean && zileanUrl === '') || (debrid && debridApi === '') || (metadataProvider === 'tmdb' && tmdbApi === '') || languages.length === 0) {
         alert('Please fill all required fields');
         return false;
     }
