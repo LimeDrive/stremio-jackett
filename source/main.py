@@ -366,7 +366,7 @@ async def head_playback(config: str, query: str, request: Request):
             return Response(status_code=status.HTTP_200_OK)
         else:
             logger.debug(f"HEAD request: Cache miss for {cache_key}")
-            time.sleep(0.1)
+            time.sleep(0.2)
             return Response(status_code=status.HTTP_200_OK) 
     except Exception as e:
         logger.error(f"HEAD request error: {e}")
