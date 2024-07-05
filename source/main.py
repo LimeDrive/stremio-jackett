@@ -143,7 +143,6 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         if local_cached_results:
             logger.info(f"Found {len(local_cached_results)} local cached results")
             if media.type == "series":
-                logger.info(f"")
                 local_cached_results = filter_out_non_matching(local_cached_results, media.season, media.episode)
                 logger.info(f"Item count after season/episode filtering: {len(local_cached_results)}")
         else:
