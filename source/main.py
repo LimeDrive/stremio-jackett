@@ -27,7 +27,7 @@ from metdata.tmdb import TMDB
 from torrent.torrent_service import TorrentService
 from torrent.torrent_smart_container import TorrentSmartContainer
 from utils.cache import search_redis, cache_redis, cache_public, search_public
-from utils.filter_results import filter_items, sort_items, merge_items
+from utils.filter_results import filter_items, sort_items, merge_items, filter_out_non_matching
 from utils.logger import setup_logger
 from utils.parse_config import parse_config
 from utils.stremio_parser import parse_to_stremio_streams
@@ -142,6 +142,10 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         local_cached_results = search_redis(media)
         if local_cached_results:
             logger.info(f"Found {len(local_cached_results)} local cached results")
+            if media.type == "series":
+                logger.info(f"")
+                local_cached_results = filter_out_non_matching(local_cached_results, media.season, media.episode)
+                logger.info(f"Item count after season/episode filtering: {len(local_cached_results)}")
         else:
             logger.info("No local cached results found")
 
