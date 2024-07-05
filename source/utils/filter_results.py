@@ -18,11 +18,9 @@ quality_order = {"4k": 0, "2160p": 0, "1080p": 1, "720p": 2, "480p": 3}
 def sort_quality(item):
     logger.debug(f"Evaluating quality for item: {item.raw_title}")
     if len(item.parsed_data.data.resolution) == 0:
-        logger.debug("No resolution found, assigning lowest priority")
         return float("inf"), True
     resolution = item.parsed_data.data.resolution[0]
     priority = quality_order.get(resolution, float("inf"))
-    logger.debug(f"Resolution found: {resolution}, assigned priority: {priority}")
     return priority, item.parsed_data.data.resolution is None
 
 
@@ -43,7 +41,6 @@ def items_sort(items, config):
         index = next((i for i, item in enumerate(items) if item.info_hash == key), None)
         if index is not None:
             items[index].parsed_data = value
-            logger.debug(f"Updated parsed data for item with info_hash: {key}")
 
     logger.info(f"Sorting items by method: {config['sort']}")
     if config["sort"] == "quality":
@@ -104,10 +101,8 @@ def remove_non_matching_title(items, titles):
     logger.info(f"Removing items not matching titles: {titles}")
     filtered_items = []
     for item in items:
-        logger.debug(f"Checking title for item: {item.raw_title}")
         for title in titles:
             if title_match(title, item.parsed_data.parsed_title):
-                logger.debug(f"Match found with title: {title}")
                 filtered_items.append(item)
                 break
         else:
@@ -171,10 +166,8 @@ def merge_items(
     def add_to_merged(item):
         if item.raw_title not in merged_dict:
             merged_dict[item.raw_title] = item
-            logger.debug(f"New item added: {item.raw_title}")
         else:
             if item.seeders > merged_dict[item.raw_title].seeders:
-                logger.debug(f"Updated item with more seeders: {item.raw_title}")
                 merged_dict[item.raw_title] = item
 
     for item in cache_items:

@@ -42,8 +42,7 @@ class TorrentSmartContainer:
         best_matching = []
         self.logger.debug(f"Total items to process: {len(self.__itemsDict)}")
         for torrent_item in self.__itemsDict.values():
-            self.logger.debug(f"Processing item: {torrent_item.raw_title}")
-            self.logger.debug(f"Has torrent: {torrent_item.torrent_download is not None}")
+            self.logger.debug(f"Processing item: {torrent_item.raw_title} - Has torrent: {torrent_item.torrent_download is not None}")
             if torrent_item.torrent_download is not None:
                 self.logger.debug(f"Has file index: {torrent_item.file_index is not None}")
                 if torrent_item.file_index is not None:

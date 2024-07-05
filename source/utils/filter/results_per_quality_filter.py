@@ -17,8 +17,6 @@ class ResultsPerQualityFilter(BaseFilter):
             resolutions = getattr(item.parsed_data, 'resolution', [])
             if not resolutions:
                 resolutions = ["?.BZH.?"]
-
-            logger.info(f"Filtering by quality: {resolutions}")
             
             for resolution in resolutions:
                 if resolution not in resolution_count:
