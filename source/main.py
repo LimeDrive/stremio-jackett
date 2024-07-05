@@ -7,12 +7,15 @@ import time
 import zipfile
 import requests
 import starlette.status as status
+import aiohttp
+import aiofiles
 
+from aiohttp import web
 from aiocron import crontab
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from starlette.responses import FileResponse
 from cachetools import TTLCache
@@ -27,7 +30,12 @@ from metdata.tmdb import TMDB
 from torrent.torrent_service import TorrentService
 from torrent.torrent_smart_container import TorrentSmartContainer
 from utils.cache import search_redis, cache_redis, cache_public, search_public
-from utils.filter_results import filter_items, sort_items, merge_items, filter_out_non_matching
+from utils.filter_results import (
+    filter_items,
+    sort_items,
+    merge_items,
+    filter_out_non_matching,
+)
 from utils.logger import setup_logger
 from utils.parse_config import parse_config
 from utils.stremio_parser import parse_to_stremio_streams
@@ -74,6 +82,7 @@ if not isDev:
 
 templates = Jinja2Templates(directory="templates")
 cache = TTLCache(maxsize=100, ttl=3600)
+stream_cache = TTLCache(maxsize=1000, ttl=3600)
 
 
 @app.get("/")
@@ -143,8 +152,12 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
         if local_cached_results:
             logger.info(f"Found {len(local_cached_results)} local cached results")
             if media.type == "series":
-                local_cached_results = filter_out_non_matching(local_cached_results, media.season, media.episode)
-                logger.info(f"Item count after season/episode filtering: {len(local_cached_results)}")
+                local_cached_results = filter_out_non_matching(
+                    local_cached_results, media.season, media.episode
+                )
+                logger.info(
+                    f"Item count after season/episode filtering: {len(local_cached_results)}"
+                )
         else:
             logger.info("No local cached results found")
 
@@ -255,6 +268,16 @@ def get_cached_stream_link(query: str, config: dict, ip: str):
     return cache[cache_key]
 
 
+async def proxy_stream(url: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            while True:
+                chunk = await response.content.read(2097152) # 2MB chunks
+                if not chunk:
+                    break
+                yield chunk
+
+
 @app.get("/playback/{config}/{query}")
 async def get_playback(config: str, query: str, request: Request):
     try:
@@ -264,17 +287,67 @@ async def get_playback(config: str, query: str, request: Request):
         config = parse_config(config)
         decoded_query = decodeb64(query)
         ip = request.client.host
-
         logger.info(f"Playback request: {decoded_query}")
-        link = get_cached_stream_link(decoded_query, config, ip)
+
+        cache_key = f"{decoded_query}_{ip}"
+
+        if cache_key in stream_cache:
+            link = stream_cache[cache_key]
+        else:
+            link = get_cached_stream_link(decoded_query, config, ip)
+            stream_cache[cache_key] = link
+
         logger.info(f"Stream link generated: {link}")
 
-        return RedirectResponse(url=link, status_code=status.HTTP_301_MOVED_PERMANENTLY)
+        headers = {
+            "Content-Type": "video/mp4",
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
+
+        return StreamingResponse(proxy_stream(link), headers=headers)
+
     except Exception as e:
         logger.error(f"Playback error: {e}")
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the request."
         )
+
+
+# TODO; Add support for partial requests
+async def handle_partial_request(request: web.Request, file_path: str):
+    file_size = os.path.getsize(file_path)
+    start = 0
+    end = file_size - 1
+
+    if "Range" in request.headers:
+        try:
+            range_header = request.headers["Range"].strip().lower()
+            range_match = re.match(r"bytes=(\d+)-(\d*)", range_header)
+            if range_match:
+                start = int(range_match.group(1))
+                if range_match.group(2):
+                    end = int(range_match.group(2))
+        except ValueError:
+            pass
+
+    chunk_size = end - start + 1
+
+    headers = {
+        "Content-Type": "video/mp4",
+        "Accept-Ranges": "bytes",
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Content-Length": str(chunk_size),
+    }
+
+    async with aiofiles.open(file_path, mode="rb") as f:
+        await f.seek(start)
+        content = await f.read(chunk_size)
+
+    return web.Response(
+        body=content, headers=headers, status=206 if start != 0 else 200
+    )
 
 
 @app.head("/playback/{config}/{query}")
@@ -288,18 +361,18 @@ async def head_playback(config: str, query: str, request: Request):
         ip = request.client.host
         cache_key = f"{decoded_query}_{ip}"
 
-        if cache_key in cache:
-            logger.debug(f"HEAD request: Cache hit for {cache_key}")
-            return Response(status_code=status.HTTP_200_OK)
+        if cache_key in stream_cache:
+            return web.Response(status=200)
         else:
-            logger.debug(f"HEAD request: Cache miss for {cache_key}")
-            time.sleep(0.1)
-            return Response(status_code=status.HTTP_200_OK)
+            link = get_cached_stream_link(decoded_query, config, ip)
+            if link:
+                stream_cache[cache_key] = link
+                return web.Response(status=200)
+            else:
+                return web.Response(status=404)
     except Exception as e:
         logger.error(f"HEAD request error: {e}")
-        raise HTTPException(
-            status_code=500, detail="An error occurred while processing the request."
-        )
+        return web.Response(status=500)
 
 
 async def update_app():
