@@ -267,14 +267,30 @@ def get_cached_stream_link(query: str, config: dict, ip: str):
     return cache[cache_key]
 
 
-CHUNK_SIZE = 10485760 # 10Mo # 512Ko = 524288
+async def get_adaptive_chunk_size(file_size):
+    MB = 1024 * 1024
+    GB = 1024 * MB
+
+    if file_size < 1 * GB:
+        return 1 * MB  # 1 MB
+    elif file_size < 3 * GB:
+        return 2 * MB  # 2 MB
+    elif file_size < 9 * GB:
+        return 5 * MB  # 5 MB
+    elif file_size < 20 * GB:
+        return 10 * MB  # 10 MB
+    else:
+        return 20 * MB  # 20 MB
 
 
 async def proxy_stream(url: str, headers: dict, proxy: str = None):
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, proxy=proxy) as response:
+            file_size = int(response.headers.get("Content-Length", 0))
+            chunk_size = await get_adaptive_chunk_size(file_size)
+
             while True:
-                chunk = await response.content.read(CHUNK_SIZE)
+                chunk = await response.content.read(chunk_size)
                 if not chunk:
                     break
                 yield chunk
@@ -306,7 +322,7 @@ async def get_playback(config: str, query: str, request: Request):
         if range_header:
             headers["Range"] = range_header
 
-        proxy = None # Not yet implemented
+        proxy = None  # Not yet implemented
 
         async with aiohttp.ClientSession() as session:
             async with session.get(link, headers=headers, proxy=proxy) as response:
@@ -394,7 +410,9 @@ async def head_playback(config: str, query: str, request: Request):
             return Response(status_code=status.HTTP_200_OK)
     except Exception as e:
         logger.error(f"HEAD request error: {e}")
-        return Response(status=500, detail="An error occurred while processing the request.")
+        return Response(
+            status=500, detail="An error occurred while processing the request."
+        )
 
 
 async def update_app():
