@@ -259,20 +259,22 @@ async def get_results(config: str, stream_type: str, stream_id: str, request: Re
 
 def get_cached_stream_link(query: str, config: dict, ip: str):
     cache_key = f"{query}_{ip}"
+
     if cache_key not in cache:
-        logger.debug(f"Cache miss for {cache_key}")
         debrid_service = get_debrid_service(config)
         cache[cache_key] = debrid_service.get_stream_link(query, config, ip)
-    else:
-        logger.debug(f"Cache hit for {cache_key}")
+
     return cache[cache_key]
 
 
-async def proxy_stream(url: str):
+CHUNK_SIZE = 10485760 # 10Mo # 512Ko = 524288
+
+
+async def proxy_stream(url: str, headers: dict, proxy: str = None):
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
+        async with session.get(url, headers=headers, proxy=proxy) as response:
             while True:
-                chunk = await response.content.read(2097152) # 2MB chunks
+                chunk = await response.content.read(CHUNK_SIZE)
                 if not chunk:
                     break
                 yield chunk
@@ -287,26 +289,48 @@ async def get_playback(config: str, query: str, request: Request):
         config = parse_config(config)
         decoded_query = decodeb64(query)
         ip = request.client.host
-        logger.info(f"Playback request: {decoded_query}")
+        # logger.info(f"Playback request: {decoded_query}")
 
         cache_key = f"{decoded_query}_{ip}"
 
         if cache_key in stream_cache:
             link = stream_cache[cache_key]
+            logger.info(f"Stream link cached: {link}")
         else:
             link = get_cached_stream_link(decoded_query, config, ip)
             stream_cache[cache_key] = link
+            logger.info(f"Stream link generated: {link}")
 
-        logger.info(f"Stream link generated: {link}")
+        range_header = request.headers.get("Range")
+        headers = {}
+        if range_header:
+            headers["Range"] = range_header
 
-        headers = {
-            "Content-Type": "video/mp4",
-            "Accept-Ranges": "bytes",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-        }
+        proxy = None # Not yet implemented
 
-        return StreamingResponse(proxy_stream(link), headers=headers)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link, headers=headers, proxy=proxy) as response:
+                if response.status == 206:
+                    return StreamingResponse(
+                        proxy_stream(link, headers, proxy),
+                        status_code=206,
+                        headers={
+                            "Content-Range": response.headers["Content-Range"],
+                            "Content-Length": response.headers["Content-Length"],
+                            "Accept-Ranges": "bytes",
+                            "Content-Type": "video/mp4",
+                        },
+                    )
+                elif response.status == 200:
+                    return StreamingResponse(
+                        proxy_stream(link, headers, proxy),
+                        headers={
+                            "Content-Type": "video/mp4",
+                            "Accept-Ranges": "bytes",
+                        },
+                    )
+                else:
+                    return RedirectResponse(link, status_code=302)
 
     except Exception as e:
         logger.error(f"Playback error: {e}")
@@ -360,17 +384,17 @@ async def head_playback(config: str, query: str, request: Request):
         decoded_query = decodeb64(query)
         ip = request.client.host
         cache_key = f"{decoded_query}_{ip}"
-        
+
         if cache_key in stream_cache:
             logger.debug(f"HEAD request: Cache hit for {cache_key}")
             return Response(status_code=status.HTTP_200_OK)
         else:
             logger.debug(f"HEAD request: Cache miss for {cache_key}")
             time.sleep(0.2)
-            return Response(status_code=status.HTTP_200_OK) 
+            return Response(status_code=status.HTTP_200_OK)
     except Exception as e:
         logger.error(f"HEAD request error: {e}")
-        return web.Response(status=500)
+        return Response(status=500, detail="An error occurred while processing the request.")
 
 
 async def update_app():
