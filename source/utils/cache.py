@@ -3,6 +3,7 @@ import json
 import copy
 import redis
 import pickle
+import hashlib
 import requests
 
 from typing import List
@@ -21,24 +22,29 @@ redis_client = redis.Redis(host="redis", port=6379)
 
 CACHE_EXPIRATION_TIME = 48 * 60 * 60
 
+def cache_key(media):
+    if isinstance(media, Movie):
+        key_string = f"movie:{media.titles[0]}:{media.languages[0]}"
+    elif isinstance(media, Series):
+        key_string = f"series:{media.titles[0]}:{media.languages[0]}:{media.season}"
+    else:
+        raise TypeError("Only Movie and Series are allowed as media!")
+    hashed_key = hashlib.sha256(key_string.encode('utf-8')).hexdigest()
+    return hashed_key[:16]
 
 def search_redis(media):
-
-    def cache_key(media):
-        if isinstance(media, Movie):
-            return f"movie:{media.titles[0]}:{media.languages[0]}"
-        elif isinstance(media, Series):
-            return f"series:{media.titles[0]}:{media.languages[0]}:{media.season}"
-        else:
-            raise TypeError("Only Movie and Series are allowed as media!")
     try:
         logger.info(f"Searching for cached {media.type} results")
-        cached_result = redis_client.get(cache_key(media))
-        return pickle.loads(cached_result) if cached_result else []
+        hash_key = cache_key(media)
+        cached_result = redis_client.hgetall(hash_key)
+        
+        if cached_result:
+            return [pickle.loads(value) for value in cached_result.values()]
+        else:
+            return []
     except Exception as e:
         logger.error(f"Error in search_cache: {str(e)}")
         return []
-
 
 def cache_redis(torrents: List[JackettResult], media):
     if os.getenv("NODE_ENV") == "development":
@@ -46,29 +52,19 @@ def cache_redis(torrents: List[JackettResult], media):
 
     logger.info("Started caching results")
 
-    def cache_key(media):
-        if isinstance(media, Movie):
-            return f"movie:{media.titles[0]}:{media.languages[0]}"
-        elif isinstance(media, Series):
-            return f"series:{media.titles[0]}:{media.languages[0]}:{media.season}"
-        else:
-            raise TypeError("Only Movie and Series are allowed as media!")
-
-    cached_torrents = []
-    for torrent in torrents:
+    cached_torrents = {}
+    for index, torrent in enumerate(torrents):
         try:
-            # Créer une copie profonde de l'objet torrent
             cached_torrent = copy.deepcopy(torrent)
             cached_torrent.indexer = "Locally cached"
-            cached_torrents.append(cached_torrent)
+            cached_torrents[str(index)] = pickle.dumps(cached_torrent)
         except Exception as e:
             logger.error(f"Failed to create cached copy of torrent: {str(e)}")
 
     try:
-        key = cache_key(media)
-        pickled_data = pickle.dumps(cached_torrents)
-        redis_client.set(key, pickled_data)
-        redis_client.expire(key, CACHE_EXPIRATION_TIME)
+        hash_key = cache_key(media)
+        redis_client.hmset(hash_key, cached_torrents)
+        redis_client.expire(hash_key, CACHE_EXPIRATION_TIME)
 
         logger.info(f"Cached {len(cached_torrents)} {media.type} results")
     except Exception as e:

@@ -77,6 +77,7 @@ function loadData() {
         if (document.getElementById('redis-fields')) {
             document.getElementById('redis-host').value = data.redisHost;
             document.getElementById('redis-port').value = data.redisPort;
+            document.getElementById('redis-expiration').value = data.redisExpiration;
         }
         if (document.getElementById('zilean-fields')) {
             document.getElementById('zileanUrl').value = data.zileanUrl;
@@ -154,6 +155,7 @@ function getLink(method) {
     const jackettApi = document.getElementById('jackett-api')?.value;
     const redisHost = document.getElementById('redis-host')?.value;
     let redisPort = document.getElementById('redis-port')?.value;
+    let redisExpiration = document.getElementById('redis-expiration')?.value;
     const debridApi = document.getElementById('debrid-api').value;
     const tmdbApi = document.getElementById('tmdb-api').value;
     const zileanUrl = document.getElementById('zileanUrl').value;
@@ -211,12 +213,16 @@ function getLink(method) {
     if (redisPort === '' || isNaN(redisPort)) {
         redisPort = 6379;
     }
+    if (redisExpiration === '' || isNaN(redisExpiration)) {
+        redisExpiration = 3600;
+    }
     let data = {
         addonHost,
         jackettHost,
         'jackettApiKey': jackettApi,
         redisHost,
         redisPort,
+        redisExpiration,
         service,
         anonymizeMagnets,
         'debridKey': debridApi,
@@ -238,7 +244,7 @@ function getLink(method) {
         debrid,
         metadataProvider
     };
-    if ((jackett && (jackettHost === '' || jackettApi === '')) || (cache && (redisHost === '' || redisPort === '')) || (zilean && zileanUrl === '') || (debrid && debridApi === '') || (metadataProvider === 'tmdb' && tmdbApi === '') || languages.length === 0) {
+    if ((jackett && (jackettHost === '' || jackettApi === '')) || (cache && (redisHost === '' || redisPort === '' || redisExpiration === '')) || (zilean && zileanUrl === '') || (debrid && debridApi === '') || (metadataProvider === 'tmdb' && tmdbApi === '') || languages.length === 0) {
         alert('Please fill all required fields');
         return false;
     }

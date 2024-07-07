@@ -10,4 +10,3 @@ rank-torrent-name
 cachetools
 redis
 aiohttp
-aiofiles
