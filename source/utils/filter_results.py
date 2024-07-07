@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from RTN import title_match, RTN, DefaultRanking, SettingsModel, sort_torrents
@@ -60,8 +61,20 @@ def items_sort(items, config):
     logger.info(f"Sorting complete. Number of sorted items: {len(sorted_items)}")
     return sorted_items
 
+def filter_out_non_matching_movies(items, year):
+    logger.info(f"Filtering non-matching movies for year : {year}")
+    year_pattern = re.compile(rf'\b{year}\b')
+    filtered_items = []
+    for item in items:
+        logger.debug(f"Checking item: {item.raw_title}")
+        if year_pattern.search(item.raw_title):
+            logger.debug("Match found")
+            filtered_items.append(item)
+        else:
+            logger.debug("No match found")
+    return filtered_items
 
-def filter_out_non_matching(items, season, episode):
+def filter_out_non_matching_series(items, season, episode):
     logger.info(
         f"Filtering non-matching items for season {season} and episode {episode}"
     )
@@ -128,8 +141,13 @@ def filter_items(items, media, config):
 
     if media.type == "series":
         logger.info(f"Filtering out non-matching series torrents")
-        items = filter_out_non_matching(items, media.season, media.episode)
+        items = filter_out_non_matching_series(items, media.season, media.episode)
         logger.info(f"Item count after season/episode filtering: {len(items)}")
+
+    if media.type == "movie":
+        logger.info(f"Filtering out non-matching movie torrents")
+        items = filter_out_non_matching_movies(items, media.year)
+        logger.info(f"Item count after year filtering: {len(items)}")
 
     items = remove_non_matching_title(items, media.titles)
     logger.info(f"Item count after title filtering: {len(items)}")

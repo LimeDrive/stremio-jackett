@@ -35,7 +35,8 @@ from utils.filter_results import (
     filter_items,
     sort_items,
     merge_items,
-    filter_out_non_matching,
+    filter_out_non_matching_series,
+    filter_out_non_matching_movies,
 )
 from utils.logger import setup_logger
 from utils.parse_config import parse_config
@@ -192,11 +193,15 @@ async def get_results(
 
     def filter_series_results(results, media):
         if media.type == "series":
-            filtered = filter_out_non_matching(results, media.season, media.episode)
+            filtered = filter_out_non_matching_series(results, media.season, media.episode)
             logger.info(
                 f"Filtered series results: {len(filtered)} (from {len(results)})"
             )
             return filtered
+        else:
+            filtered = filter_out_non_matching_movies(results, media.year)
+            logger.info(
+                f"Filtered movie results: {len(filtered)} (from {len(results)})")
         return results
 
     def get_search_results(media, config):
